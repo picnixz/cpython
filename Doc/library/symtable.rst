@@ -125,6 +125,67 @@ Examining Symbol Tables
 
    A namespace of a class.  This class inherits from :class:`SymbolTable`.
 
+   .. method:: get_aliases()
+
+      Return a tuple containing the names of type aliases defined in the class
+      body via :term:`type`.
+
+      Type aliases defined in a deeper scope (e.g., in a method-like function
+      or an inner class) are not picked by :meth:`get_aliases`.
+
+      For instance:
+
+         >>> import symtable
+         >>> st = symtable.symtable("""
+         ... type S = int
+         ...
+         ... class A:
+         ...    type T = int
+         ...
+         ...    def f(self):
+         ...        type U = float
+         ...        return U
+         ...
+         ...    global S
+         ...    type S = str
+         ... """, "test", "exec")
+         >>> _type_S, class_A = st.get_children()
+         >>> class_A.get_aliases()
+         ('T',)
+
+      .. versionadded:: 3.14
+
+   .. method:: get_classes()
+
+      Return a tuple containing the names of inner classes defined in the class
+      body via :term:`class`.
+
+      Classes defined in a deeper scope (e.g., in a method-like function or
+      an inner class) are not picked by :meth:`get_classes`.
+
+      For instance:
+
+         >>> import symtable
+         >>> st = symtable.symtable("""
+         ... class Bar: pass
+         ...
+         ... class Foo:
+         ...    class A:
+         ...        class B: pass
+         ...
+         ...    def f(self):
+         ...        class C: pass
+         ...        return C
+         ...
+         ...    global Bar
+         ...    class Bar: pass
+         ... """, "test", "exec")
+         >>> _class_Bar, class_Foo = st.get_children()
+         >>> class_Foo.get_classes()
+         ('A',)
+
+      .. versionadded:: 3.14
+
    .. method:: get_methods()
 
       Return a tuple containing the names of method-like functions declared

@@ -56,11 +56,26 @@ class GenericMine[T: int]:
 TEST_COMPLEX_CLASS_CODE = """
 # The following symbols are defined in ComplexClass
 # without being introduced by a 'global' statement.
+
+# unassigned
+glob_unassigned_type_alias: Any
+glob_unassigned_type_alias_pep_695: Any
+
+glob_unassigned_class: Any
+glob_unassigned_class_pep_695: Any
+
 glob_unassigned_meth: Any
 glob_unassigned_meth_pep_695: Any
 
 glob_unassigned_async_meth: Any
 glob_unassigned_async_meth_pep_695: Any
+
+# assigned
+glob_assigned_type_alias = int
+glob_assigned_type_alias_pep_695 = list[int]
+
+class glob_assigned_class: pass
+class glob_assigned_class_pep_695[T]: pass
 
 def glob_assigned_meth(): pass
 def glob_assigned_meth_pep_695[T](): pass
@@ -71,11 +86,24 @@ async def glob_assigned_async_meth_pep_695[T](): pass
 # The following symbols are defined in ComplexClass after
 # being introduced by a 'global' statement (and therefore
 # are not considered as local symbols of ComplexClass).
+glob_unassigned_type_alias_ignore: Any
+glob_unassigned_type_alias_pep_695_ignore: Any
+
+glob_unassigned_class_ignore: Any
+glob_unassigned_class_pep_695_ignore: Any
+
 glob_unassigned_meth_ignore: Any
 glob_unassigned_meth_pep_695_ignore: Any
 
 glob_unassigned_async_meth_ignore: Any
 glob_unassigned_async_meth_pep_695_ignore: Any
+
+# assigned
+type glob_assigned_type_alias_ignore = int
+type glob_assigned_type_alias_pep_695_ignore[T] = list[T]
+
+class glob_assigned_class_ignore: pass
+class glob_assigned_class_pep_695_ignore[T]: pass
 
 def glob_assigned_meth_ignore(): pass
 def glob_assigned_meth_pep_695_ignore[T](): pass
@@ -129,13 +157,25 @@ class ComplexClass:
     async def an_async_fakemethod(): pass
     async def an_async_fakemethod_pep_695[T](): pass
 
-    # Check that those are still considered as methods
+    # Check that those are still considered as locals
     # since they are not using the 'global' keyword.
+    type glob_unassigned_type_alias = int
+    type glob_unassigned_type_alias_pep_695 = list[int]
+
+    class glob_unassigned_class: pass
+    class glob_unassigned_class_pep_695[T]: pass
+
     def glob_unassigned_meth(): pass
     def glob_unassigned_meth_pep_695[T](): pass
 
     async def glob_unassigned_async_meth(): pass
     async def glob_unassigned_async_meth_pep_695[T](): pass
+
+    type glob_assigned_type_alias = int
+    type glob_assigned_type_alias_pep_695 = list[int]
+
+    class glob_assigned_class: pass
+    class glob_assigned_class_pep_695[T]: pass
 
     def glob_assigned_meth(): pass
     def glob_assigned_meth_pep_695[T](): pass
@@ -146,6 +186,16 @@ class ComplexClass:
     # The following are not picked as local symbols because they are not
     # visible by the class at runtime (this is equivalent to having the
     # definitions outside of the class).
+    global glob_unassigned_type_alias_ignore
+    type glob_unassigned_type_alias_ignore = int
+    global glob_unassigned_type_alias_pep_695_ignore
+    type glob_unassigned_type_alias_pep_695_ignore[T] = list[T]
+
+    global glob_unassigned_class_ignore
+    class glob_unassigned_class_ignore: pass
+    global glob_unassigned_class_pep_695_ignore
+    class glob_unassigned_class_pep_695_ignore[T]: pass
+
     global glob_unassigned_meth_ignore
     def glob_unassigned_meth_ignore(): pass
     global glob_unassigned_meth_pep_695_ignore
@@ -155,6 +205,16 @@ class ComplexClass:
     async def glob_unassigned_async_meth_ignore(): pass
     global glob_unassigned_async_meth_pep_695_ignore
     async def glob_unassigned_async_meth_pep_695_ignore[T](): pass
+
+    global glob_assigned_type_alias_ignore
+    type glob_assigned_type_alias_ignore = int
+    global glob_assigned_type_alias_pep_695_ignore
+    type glob_assigned_type_alias_pep_695_ignore[T] = list[T]
+
+    global glob_assigned_class_ignore
+    class glob_assigned_class_ignore: pass
+    global glob_assigned_class_pep_695_ignore
+    class glob_assigned_class_pep_695_ignore[T]: pass
 
     global glob_assigned_meth_ignore
     def glob_assigned_meth_ignore(): pass
@@ -357,6 +417,18 @@ class SymtableTest(unittest.TestCase):
 
         top = symtable.symtable(TEST_COMPLEX_CLASS_CODE, "?", "exec")
         this = find_block(top, "ComplexClass")
+
+        self.assertEqual(this.get_aliases(), (
+            'a_type_alias', 'a_type_alias_pep_695',
+            'glob_unassigned_type_alias', 'glob_unassigned_type_alias_pep_695',
+            'glob_assigned_type_alias', 'glob_assigned_type_alias_pep_695',
+        ))
+
+        self.assertEqual(this.get_classes(), (
+            'a_class', 'a_class_pep_695',
+            'glob_unassigned_class', 'glob_unassigned_class_pep_695',
+            'glob_assigned_class', 'glob_assigned_class_pep_695',
+        ))
 
         self.assertEqual(this.get_methods(), (
             'a_method', 'a_method_pep_695',

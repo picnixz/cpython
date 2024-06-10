@@ -214,34 +214,50 @@ class Function(SymbolTable):
 
 class Class(SymbolTable):
 
+    __aliases = None
+    __classes = None
     __methods = None
 
+    def get_aliases(self):
+        """Return a tuple of type aliases declared in the class."""
+        if self.__aliases is None:
+            self.__aliases = self.__get_local_idents(_symtable.TYPE_TYPE_ALIAS)
+        return self.__aliases
+
+    def get_classes(self):
+        """Return a tuple of classes declared in the class."""
+        if self.__classes is None:
+            self.__classes = self.__get_local_idents(_symtable.TYPE_CLASS)
+        return self.__classes
+
     def get_methods(self):
-        """Return a tuple of methods declared in the class.
-        """
+        """Return a tuple of methods declared in the class."""
         if self.__methods is None:
-            d = {}
-
-            def is_local_symbol(ident):
-                flags = self._table.symbols.get(ident, 0)
-                return ((flags >> SCOPE_OFF) & SCOPE_MASK) == LOCAL
-
-            for st in self._table.children:
-                # pick the function-like symbols that are local identifiers
-                if is_local_symbol(st.name):
-                    match st.type:
-                        case _symtable.TYPE_FUNCTION:
-                            d[st.name] = 1
-                        case _symtable.TYPE_TYPE_PARAM:
-                            # Get the function-def block in the annotation
-                            # scope 'st' with the same identifier, if any.
-                            scope_name = st.name
-                            for c in st.children:
-                                if c.name == scope_name and c.type == _symtable.TYPE_FUNCTION:
-                                    d[st.name] = 1
-                                    break
-            self.__methods = tuple(d)
+            self.__methods = self.__get_local_idents(_symtable.TYPE_FUNCTION)
         return self.__methods
+
+    def __get_local_idents(self, st_type):
+        """Get a tuple of local children identifiers of type *st_type*.
+
+        Inner generic functions, inner generic classes and inner type aliases
+        are also inspected to locate eponym children blocks of type *st_type*.
+        """
+        def is_local_child(child):
+            flags = self._table.symbols.get(child.name, 0)
+            return ((flags >> SCOPE_OFF) & SCOPE_MASK) == LOCAL
+
+        d = {}
+        for st in filter(is_local_child, self._table.children):
+            if st.type == st_type:
+                d[st.name] = 1
+            elif st.type == _symtable.TYPE_TYPE_PARAM:
+                # find an optional eponym block inside the annotation scope
+                ident = st.name
+                for child in st.children:
+                    if child.name == ident and child.type == st_type:
+                        d[ident] = 1
+                        break
+        return tuple(d)
 
 
 class Symbol:
