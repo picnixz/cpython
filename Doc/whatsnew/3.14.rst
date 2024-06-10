@@ -92,6 +92,15 @@ ast
 Added :func:`ast.compare` for comparing two ASTs.
 (Contributed by Batuhan Taskaya and Jeremy Hylton in :issue:`15987`.)
 
+symtable
+--------
+
+* Expose the following :class:`symtable.Class` methods:
+
+  * :meth:`~symtable.Class.get_aliases`
+  * :meth:`~symtable.Class.get_classes`
+
+  (Contributed by Bénédikt Tran in :gh:`119698`.)
 
 
 Optimizations
