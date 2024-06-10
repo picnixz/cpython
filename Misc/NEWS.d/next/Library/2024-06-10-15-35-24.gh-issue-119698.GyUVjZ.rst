@@ -1,0 +1,3 @@
+Expose :class:`symtable.Class` methods :meth:`~symtable.Class.get_aliases`
+and :meth:`~symtable.Class.get_classes`.
+Patch by Bénédikt Tran.
