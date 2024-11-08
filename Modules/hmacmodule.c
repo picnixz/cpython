@@ -439,7 +439,7 @@ hmac_copy_hinfo(HMACObject *out, const HMACObject *src)
     return 0;
 }
 
-static inline int
+static int
 hmac_copy_state(HMACObject *out, const HMACObject *src)
 {
     const HMAC_State *st = src->state;
@@ -939,7 +939,7 @@ py_hmac_hinfo_ht_comp(const void *a, const void *b)
     return strcmp((const char *)a, (const char *)b) == 0;
 }
 
-static inline void
+static void
 py_hmac_hinfo_ht_free(void *hinfo)
 {
     py_hmac_hinfo *entry = (py_hmac_hinfo *)hinfo;
@@ -1073,7 +1073,7 @@ hmacmodule_clear(PyObject *mod)
     return 0;
 }
 
-static void
+static inline void
 hmacmodule_free(void *mod)
 {
     (void)hmacmodule_clear((PyObject *)mod);
