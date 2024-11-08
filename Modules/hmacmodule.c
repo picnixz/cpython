@@ -117,6 +117,7 @@ typedef enum HMAC_Hash_Kind {
 typedef void (*HACL_HMAC_update_func)(void *state,
                                       uint8_t *buf, uint32_t buflen);
 
+/* Function pointer type for HACL_HMAC_compute_* functions. */
 typedef void (*HACL_HMAC_digest_func)(uint8_t *out,
                                       uint8_t *key, uint32_t keylen,
                                       uint8_t *msg, uint32_t msglen);
@@ -164,7 +165,7 @@ typedef struct py_hmac_hinfo {
 
 /* Static information used to construct the hash table. */
 static const py_hmac_hinfo py_hmac_static_hinfo[] = {
-#define Py_HMAC_HID_ENTRY(HACL_HID, HLIB_NAME, HLIB_ALTN, OSSL_NAME)    \
+#define Py_HMAC_HINFO_ENTRY(HACL_HID, HLIB_NAME, HLIB_ALTN, OSSL_NAME)  \
 {                                                                       \
     Py_STRINGIFY(HACL_HID), NULL,                                       \
     Py_HMAC_Hash_## HACL_HID,                                           \
@@ -176,23 +177,23 @@ static const py_hmac_hinfo py_hmac_static_hinfo[] = {
     0,                                                                  \
 }
     /* MD5 */
-    Py_HMAC_HID_ENTRY(md5, "md5", "MD5", LN_md5),
+    Py_HMAC_HINFO_ENTRY(md5, "md5", "MD5", LN_md5),
     /* SHA-1 */
-    Py_HMAC_HID_ENTRY(sha1, "sha1", "SHA1", LN_sha1),
+    Py_HMAC_HINFO_ENTRY(sha1, "sha1", "SHA1", LN_sha1),
     /* SHA-2 family */
-    Py_HMAC_HID_ENTRY(sha2_224, "sha224", "SHA224", LN_sha224),
-    Py_HMAC_HID_ENTRY(sha2_256, "sha256", "SHA256", LN_sha256),
-    Py_HMAC_HID_ENTRY(sha2_384, "sha384", "SHA384", LN_sha384),
-    Py_HMAC_HID_ENTRY(sha2_512, "sha512", "SHA512", LN_sha512),
+    Py_HMAC_HINFO_ENTRY(sha2_224, "sha224", "SHA224", LN_sha224),
+    Py_HMAC_HINFO_ENTRY(sha2_256, "sha256", "SHA256", LN_sha256),
+    Py_HMAC_HINFO_ENTRY(sha2_384, "sha384", "SHA384", LN_sha384),
+    Py_HMAC_HINFO_ENTRY(sha2_512, "sha512", "SHA512", LN_sha512),
     /* SHA-3 family */
-    Py_HMAC_HID_ENTRY(sha3_224, NULL, NULL, LN_sha3_224),
-    Py_HMAC_HID_ENTRY(sha3_256, NULL, NULL, LN_sha3_256),
-    Py_HMAC_HID_ENTRY(sha3_384, NULL, NULL, LN_sha3_384),
-    Py_HMAC_HID_ENTRY(sha3_512, NULL, NULL, LN_sha3_512),
+    Py_HMAC_HINFO_ENTRY(sha3_224, NULL, NULL, LN_sha3_224),
+    Py_HMAC_HINFO_ENTRY(sha3_256, NULL, NULL, LN_sha3_256),
+    Py_HMAC_HINFO_ENTRY(sha3_384, NULL, NULL, LN_sha3_384),
+    Py_HMAC_HINFO_ENTRY(sha3_512, NULL, NULL, LN_sha3_512),
     /* Blake family */
-    Py_HMAC_HID_ENTRY(blake2s_32, "blake2s256", NULL, LN_blake2s256),
-    Py_HMAC_HID_ENTRY(blake2b_32, "blake2b512", NULL, LN_blake2b512),
-#undef Py_HMAC_HID_ENTRY
+    Py_HMAC_HINFO_ENTRY(blake2s_32, "blake2s256", NULL, LN_blake2s256),
+    Py_HMAC_HINFO_ENTRY(blake2b_32, "blake2b512", NULL, LN_blake2b512),
+#undef Py_HMAC_HINFO_ENTRY
     /* sentinel */
     {NULL, NULL, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, 0},
 };
