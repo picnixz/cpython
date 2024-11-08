@@ -4,11 +4,13 @@
 
 #include "Python.h"
 #include "pycore_hashtable.h"
-#include "pycore_strhex.h"      // _Py_strhex()
+#include "pycore_strhex.h"              // _Py_strhex()
 
-#include <openssl/obj_mac.h>    // LN_* macros
+#include <openssl/obj_mac.h>            // LN_* macros
 
 #include "_hacl/Hacl_HMAC.h"
+#include "_hacl/Hacl_Streaming_Types.h" // Hacl_Streaming_Types_error_code
+
 #include "hashlib.h"
 
 // HMAC underlying hash function static information.
@@ -18,77 +20,89 @@
 #define Py_hmac_md5_block_size          64
 #define Py_hmac_md5_digest_size         16
 #define Py_hmac_md5_update_func         NULL
-#define Py_hmac_md5_digest_func         Hacl_HMAC_compute_md5
+#define Py_hmac_md5_digest_func         NULL
+#define Py_hmac_md5_compute_func        Hacl_HMAC_compute_md5
 
 /* SHA-1 family */
 // HACL_HID = sha1
 #define Py_hmac_sha1_block_size         64
 #define Py_hmac_sha1_digest_size        20
 #define Py_hmac_sha1_update_func        NULL
-#define Py_hmac_sha1_digest_func        Hacl_HMAC_compute_sha1
+#define Py_hmac_sha1_digest_func        NULL
+#define Py_hmac_sha1_compute_func       Hacl_HMAC_compute_sha1
 
 /* SHA-2 family */
 // HACL_HID = sha2_224
 #define Py_hmac_sha2_224_block_size     64
 #define Py_hmac_sha2_224_digest_size    28
 #define Py_hmac_sha2_224_update_func    NULL
-#define Py_hmac_sha2_224_digest_func    Hacl_HMAC_compute_sha2_224
+#define Py_hmac_sha2_224_digest_func    NULL
+#define Py_hmac_sha2_224_compute_func   Hacl_HMAC_compute_sha2_224
 
 // HACL_HID = sha2_256
 #define Py_hmac_sha2_256_block_size     64
 #define Py_hmac_sha2_256_digest_size    32
 #define Py_hmac_sha2_256_update_func    NULL
-#define Py_hmac_sha2_256_digest_func    Hacl_HMAC_compute_sha2_256
+#define Py_hmac_sha2_256_digest_func    NULL
+#define Py_hmac_sha2_256_compute_func   Hacl_HMAC_compute_sha2_256
 
 // HACL_HID = sha2_384
 #define Py_hmac_sha2_384_block_size     128
 #define Py_hmac_sha2_384_digest_size    48
 #define Py_hmac_sha2_384_update_func    NULL
-#define Py_hmac_sha2_384_digest_func    Hacl_HMAC_compute_sha2_384
+#define Py_hmac_sha2_384_digest_func    NULL
+#define Py_hmac_sha2_384_compute_func   Hacl_HMAC_compute_sha2_384
 
 // HACL_HID = sha2_512
 #define Py_hmac_sha2_512_block_size     128
 #define Py_hmac_sha2_512_digest_size    64
 #define Py_hmac_sha2_512_update_func    NULL
-#define Py_hmac_sha2_512_digest_func    Hacl_HMAC_compute_sha2_512
+#define Py_hmac_sha2_512_digest_func    NULL
+#define Py_hmac_sha2_512_compute_func   Hacl_HMAC_compute_sha2_512
 
 /* SHA-3 family */
 // HACL_HID = sha3_224
 #define Py_hmac_sha3_224_block_size     144
 #define Py_hmac_sha3_224_digest_size    28
 #define Py_hmac_sha3_224_update_func    NULL
-#define Py_hmac_sha3_224_digest_func    Hacl_HMAC_compute_sha3_224
+#define Py_hmac_sha3_224_digest_func    NULL
+#define Py_hmac_sha3_224_compute_func   Hacl_HMAC_compute_sha3_224
 
 // HACL_HID = sha3_256
 #define Py_hmac_sha3_256_block_size     136
 #define Py_hmac_sha3_256_digest_size    32
 #define Py_hmac_sha3_256_update_func    NULL
-#define Py_hmac_sha3_256_digest_func    Hacl_HMAC_compute_sha3_256
+#define Py_hmac_sha3_256_digest_func    NULL
+#define Py_hmac_sha3_256_compute_func   Hacl_HMAC_compute_sha3_256
 
 // HACL_HID = sha3_384
 #define Py_hmac_sha3_384_block_size     104
 #define Py_hmac_sha3_384_digest_size    48
 #define Py_hmac_sha3_384_update_func    NULL
-#define Py_hmac_sha3_384_digest_func    Hacl_HMAC_compute_sha3_384
+#define Py_hmac_sha3_384_digest_func    NULL
+#define Py_hmac_sha3_384_compute_func   Hacl_HMAC_compute_sha3_384
 
 // HACL_HID = sha3_512
 #define Py_hmac_sha3_512_block_size     72
 #define Py_hmac_sha3_512_digest_size    64
 #define Py_hmac_sha3_512_update_func    NULL
-#define Py_hmac_sha3_512_digest_func    Hacl_HMAC_compute_sha3_512
+#define Py_hmac_sha3_512_digest_func    NULL
+#define Py_hmac_sha3_512_compute_func   Hacl_HMAC_compute_sha3_512
 
 /* Blake family */
 // HACL_HID = blake2s_32
 #define Py_hmac_blake2s_32_block_size   64
 #define Py_hmac_blake2s_32_digest_size  32
 #define Py_hmac_blake2s_32_update_func  NULL
-#define Py_hmac_blake2s_32_digest_func  Hacl_HMAC_compute_blake2s_32
+#define Py_hmac_blake2s_32_digest_func  NULL
+#define Py_hmac_blake2s_32_compute_func Hacl_HMAC_compute_blake2s_32
 
 // HACL_HID = blake2b_32
 #define Py_hmac_blake2b_32_block_size   128
 #define Py_hmac_blake2b_32_digest_size  64
 #define Py_hmac_blake2b_32_update_func  NULL
-#define Py_hmac_blake2b_32_digest_func  Hacl_HMAC_compute_blake2b_32
+#define Py_hmac_blake2b_32_digest_func  NULL
+#define Py_hmac_blake2b_32_compute_func Hacl_HMAC_compute_blake2b_32
 
 #define Py_hmac_hash_max_digest_size    64
 
@@ -114,13 +128,32 @@ typedef enum HMAC_Hash_Kind {
     Py_HMAC_Hash_blake2b_32,
 } HMAC_Hash_Kind;
 
-typedef void (*HACL_HMAC_update_func)(void *state,
-                                      uint8_t *buf, uint32_t buflen);
+/* Function pointer type for HACL* streaming HMAC update functions. */
+typedef Hacl_Streaming_Types_error_code
+(*HACL_HMAC_update_func)(void *state, uint8_t *buf, uint32_t len);
 
-/* Function pointer type for HACL_HMAC_compute_* functions. */
-typedef void (*HACL_HMAC_digest_func)(uint8_t *out,
-                                      uint8_t *key, uint32_t keylen,
-                                      uint8_t *msg, uint32_t msglen);
+/* Function pointer type for HACL* streaming HMAC digest functions. */
+typedef Hacl_Streaming_Types_error_code
+(*HACL_HMAC_digest_func)(void *state, uint8_t *out);
+
+/* Function pointer type for 1-shot HACL_HMAC_compute_* functions. */
+typedef void
+(*HACL_HMAC_compute_func)(uint8_t *out,
+                          uint8_t *key, uint32_t keylen,
+                          uint8_t *msg, uint32_t msglen);
+
+#if PY_SSIZE_T_MAX > UINT32_MAX
+#define Py_HMAC_HACL_UPDATE_LOOP(UPDATE_FUNC, HACL_STATE, BUF, LEN) \
+    do {                                                            \
+        while (LEN > UINT32_MAX) {                                  \
+            UPDATE_FUNC(HACL_STATE, BUF, UINT32_MAX);               \
+            LEN -= UINT32_MAX;                                      \
+            BUF += UINT32_MAX;                                      \
+        }                                                           \
+    } while (0)
+#else
+#define Py_HMAC_HACL_UPDATE_LOOP(UPDATE_FUNC, HACL_STATE, BUF, LEN)
+#endif
 
 /*
  * HMAC underlying hash function static information.
@@ -155,6 +188,7 @@ typedef struct py_hmac_hinfo {
     /* hash function sub-routines */
     const HACL_HMAC_update_func update;
     const HACL_HMAC_digest_func digest;
+    const HACL_HMAC_compute_func compute;
 
     const char *hashlib_name;   /* hashlib preferred name (default: name) */
     const char *hashlib_altn;   /* hashlib alias (default: hashlib_name) */
@@ -173,6 +207,7 @@ static const py_hmac_hinfo py_hmac_static_hinfo[] = {
     Py_hmac_## HACL_HID ##_digest_size,                                 \
     Py_hmac_## HACL_HID ##_update_func,                                 \
     Py_hmac_## HACL_HID ##_digest_func,                                 \
+    Py_hmac_## HACL_HID ##_compute_func,                                \
     HLIB_NAME, HLIB_ALTN, OSSL_NAME,                                    \
     0,                                                                  \
 }
@@ -237,6 +272,8 @@ class _hmac.HMAC "HMACObject *" "clinic_state()->hmac_type"
 
 // --- HMAC Object ------------------------------------------------------------
 
+typedef struct HMAC_Hacl_Context HMAC_Hacl_Context;
+
 typedef struct HMAC_State {
     uint8_t *key;       // user-specified key
     Py_ssize_t keylen;  // key length in bytes
@@ -259,8 +296,9 @@ typedef struct HMACObject {
 
     HACL_HMAC_update_func update;
     HACL_HMAC_digest_func digest;
+    HACL_HMAC_compute_func compute;
 
-    // HMAC internal state.
+    // HMAC HACL internal state.
     HMAC_State *state;
 } HMACObject;
 
@@ -325,6 +363,7 @@ hmac_set_hinfo(HMACObject *self, const py_hmac_hinfo *info)
 
     self->update = info->update;
     self->digest = info->digest;
+    self->compute = info->compute;
     return 0;
 }
 
@@ -523,9 +562,28 @@ hmac_digest_compute(uint8_t *digest, HMACObject *self)
     Py_ssize_t keylen = self->state->keylen;
 
     uint8_t *msg = self->state->msg;
-    Py_ssize_t msglen = self->state->keylen;
-    // TODO: use HACL* update() functions for HMAC when available
-    self->digest(digest, key, keylen, msg, msglen);
+    Py_ssize_t msglen = self->state->msglen;
+
+#if PY_SSIZE_T_MAX > UINT32_MAX
+    if (msglen > (Py_ssize_t)UINT32_MAX) {
+        if (self->update == NULL) {
+            PyErr_SetNone(PyExc_NotImplementedError);
+            return -1;
+        }
+        else {
+            Py_HMAC_HACL_UPDATE_LOOP(self->update, self->state, msg, msglen);
+            self->update(self->state, msg, msglen);
+            self->digest(self->state, digest);
+            return 0;
+        }
+    }
+    else {
+        // We can do one-shot encoding.
+        self->compute(digest, key, keylen, msg, msglen);
+    }
+#else
+    self->compute(digest, key, keylen, msg, msglen);
+#endif
     return 0;
 }
 
@@ -703,7 +761,7 @@ has_uint32_t_buffer_length(const Py_buffer *buffer)
             return NULL;                                            \
         }                                                           \
         uint8_t out[Py_hmac_## HACL_HID ##_digest_size];            \
-        Py_hmac_## HACL_HID ##_digest_func(                         \
+        Py_hmac_## HACL_HID ##_compute_func(                        \
             out,                                                    \
             (uint8_t *)keyview.buf, (uint32_t)keyview.len,          \
             (uint8_t *)msgview.buf, (uint32_t)msgview.len           \
