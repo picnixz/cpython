@@ -2,7 +2,210 @@
 preserve
 [clinic start generated code]*/
 
-#include "pycore_modsupport.h"    // _PyArg_CheckPositional()
+#if defined(Py_BUILD_CORE) && !defined(Py_BUILD_CORE_MODULE)
+#  include "pycore_gc.h"          // PyGC_Head
+#  include "pycore_runtime.h"     // _Py_ID()
+#endif
+#include "pycore_modsupport.h"    // _PyArg_UnpackKeywords()
+
+PyDoc_STRVAR(_hmac_new__doc__,
+"new($module, /, key, msg=b\'\', digestmod=None)\n"
+"--\n"
+"\n"
+"Return a new HMAC object.");
+
+#define _HMAC_NEW_METHODDEF    \
+    {"new", _PyCFunction_CAST(_hmac_new), METH_FASTCALL|METH_KEYWORDS, _hmac_new__doc__},
+
+static PyObject *
+_hmac_new_impl(PyObject *module, PyObject *keyobj, PyObject *msgobj,
+               PyObject *digestmod);
+
+static PyObject *
+_hmac_new(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
+{
+    PyObject *return_value = NULL;
+    #if defined(Py_BUILD_CORE) && !defined(Py_BUILD_CORE_MODULE)
+
+    #define NUM_KEYWORDS 3
+    static struct {
+        PyGC_Head _this_is_not_used;
+        PyObject_VAR_HEAD
+        PyObject *ob_item[NUM_KEYWORDS];
+    } _kwtuple = {
+        .ob_base = PyVarObject_HEAD_INIT(&PyTuple_Type, NUM_KEYWORDS)
+        .ob_item = { &_Py_ID(key), &_Py_ID(msg), &_Py_ID(digestmod), },
+    };
+    #undef NUM_KEYWORDS
+    #define KWTUPLE (&_kwtuple.ob_base.ob_base)
+
+    #else  // !Py_BUILD_CORE
+    #  define KWTUPLE NULL
+    #endif  // !Py_BUILD_CORE
+
+    static const char * const _keywords[] = {"key", "msg", "digestmod", NULL};
+    static _PyArg_Parser _parser = {
+        .keywords = _keywords,
+        .fname = "new",
+        .kwtuple = KWTUPLE,
+    };
+    #undef KWTUPLE
+    PyObject *argsbuf[3];
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 1;
+    PyObject *keyobj;
+    PyObject *msgobj = NULL;
+    PyObject *digestmod = NULL;
+
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 3, 0, argsbuf);
+    if (!args) {
+        goto exit;
+    }
+    keyobj = args[0];
+    if (!noptargs) {
+        goto skip_optional_pos;
+    }
+    if (args[1]) {
+        msgobj = args[1];
+        if (!--noptargs) {
+            goto skip_optional_pos;
+        }
+    }
+    digestmod = args[2];
+skip_optional_pos:
+    return_value = _hmac_new_impl(module, keyobj, msgobj, digestmod);
+
+exit:
+    return return_value;
+}
+
+PyDoc_STRVAR(_hmac_HMAC_copy__doc__,
+"copy($self, /)\n"
+"--\n"
+"\n"
+"Return a copy (\"clone\") of the HMAC object.");
+
+#define _HMAC_HMAC_COPY_METHODDEF    \
+    {"copy", (PyCFunction)_hmac_HMAC_copy, METH_NOARGS, _hmac_HMAC_copy__doc__},
+
+static PyObject *
+_hmac_HMAC_copy_impl(HMACObject *self);
+
+static PyObject *
+_hmac_HMAC_copy(HMACObject *self, PyObject *Py_UNUSED(ignored))
+{
+    return _hmac_HMAC_copy_impl(self);
+}
+
+PyDoc_STRVAR(_hmac_HMAC_update__doc__,
+"update($self, msg, /)\n"
+"--\n"
+"\n"
+"Update the HMAC object with the given message.");
+
+#define _HMAC_HMAC_UPDATE_METHODDEF    \
+    {"update", (PyCFunction)_hmac_HMAC_update, METH_O, _hmac_HMAC_update__doc__},
+
+PyDoc_STRVAR(_hmac_HMAC_digest__doc__,
+"digest($self, /)\n"
+"--\n"
+"\n"
+"Return the digest of the bytes passed to the update() method so far.");
+
+#define _HMAC_HMAC_DIGEST_METHODDEF    \
+    {"digest", (PyCFunction)_hmac_HMAC_digest, METH_NOARGS, _hmac_HMAC_digest__doc__},
+
+static PyObject *
+_hmac_HMAC_digest_impl(HMACObject *self);
+
+static PyObject *
+_hmac_HMAC_digest(HMACObject *self, PyObject *Py_UNUSED(ignored))
+{
+    return _hmac_HMAC_digest_impl(self);
+}
+
+PyDoc_STRVAR(_hmac_HMAC_hexdigest__doc__,
+"hexdigest($self, /)\n"
+"--\n"
+"\n"
+"Return hexadecimal digest of the bytes passed to the update() method so far.\n"
+"\n"
+"This may be used to exchange the value safely in email or other non-binary\n"
+"environments.");
+
+#define _HMAC_HMAC_HEXDIGEST_METHODDEF    \
+    {"hexdigest", (PyCFunction)_hmac_HMAC_hexdigest, METH_NOARGS, _hmac_HMAC_hexdigest__doc__},
+
+static PyObject *
+_hmac_HMAC_hexdigest_impl(HMACObject *self);
+
+static PyObject *
+_hmac_HMAC_hexdigest(HMACObject *self, PyObject *Py_UNUSED(ignored))
+{
+    return _hmac_HMAC_hexdigest_impl(self);
+}
+
+#if defined(_hmac_HMAC_name_HAS_DOCSTR)
+#  define _hmac_HMAC_name_DOCSTR _hmac_HMAC_name__doc__
+#else
+#  define _hmac_HMAC_name_DOCSTR NULL
+#endif
+#if defined(_HMAC_HMAC_NAME_GETSETDEF)
+#  undef _HMAC_HMAC_NAME_GETSETDEF
+#  define _HMAC_HMAC_NAME_GETSETDEF {"name", (getter)_hmac_HMAC_name_get, (setter)_hmac_HMAC_name_set, _hmac_HMAC_name_DOCSTR},
+#else
+#  define _HMAC_HMAC_NAME_GETSETDEF {"name", (getter)_hmac_HMAC_name_get, NULL, _hmac_HMAC_name_DOCSTR},
+#endif
+
+static PyObject *
+_hmac_HMAC_name_get_impl(HMACObject *self);
+
+static PyObject *
+_hmac_HMAC_name_get(HMACObject *self, void *Py_UNUSED(context))
+{
+    return _hmac_HMAC_name_get_impl(self);
+}
+
+#if defined(_hmac_HMAC_block_size_HAS_DOCSTR)
+#  define _hmac_HMAC_block_size_DOCSTR _hmac_HMAC_block_size__doc__
+#else
+#  define _hmac_HMAC_block_size_DOCSTR NULL
+#endif
+#if defined(_HMAC_HMAC_BLOCK_SIZE_GETSETDEF)
+#  undef _HMAC_HMAC_BLOCK_SIZE_GETSETDEF
+#  define _HMAC_HMAC_BLOCK_SIZE_GETSETDEF {"block_size", (getter)_hmac_HMAC_block_size_get, (setter)_hmac_HMAC_block_size_set, _hmac_HMAC_block_size_DOCSTR},
+#else
+#  define _HMAC_HMAC_BLOCK_SIZE_GETSETDEF {"block_size", (getter)_hmac_HMAC_block_size_get, NULL, _hmac_HMAC_block_size_DOCSTR},
+#endif
+
+static PyObject *
+_hmac_HMAC_block_size_get_impl(HMACObject *self);
+
+static PyObject *
+_hmac_HMAC_block_size_get(HMACObject *self, void *Py_UNUSED(context))
+{
+    return _hmac_HMAC_block_size_get_impl(self);
+}
+
+#if defined(_hmac_HMAC_digest_size_HAS_DOCSTR)
+#  define _hmac_HMAC_digest_size_DOCSTR _hmac_HMAC_digest_size__doc__
+#else
+#  define _hmac_HMAC_digest_size_DOCSTR NULL
+#endif
+#if defined(_HMAC_HMAC_DIGEST_SIZE_GETSETDEF)
+#  undef _HMAC_HMAC_DIGEST_SIZE_GETSETDEF
+#  define _HMAC_HMAC_DIGEST_SIZE_GETSETDEF {"digest_size", (getter)_hmac_HMAC_digest_size_get, (setter)_hmac_HMAC_digest_size_set, _hmac_HMAC_digest_size_DOCSTR},
+#else
+#  define _HMAC_HMAC_DIGEST_SIZE_GETSETDEF {"digest_size", (getter)_hmac_HMAC_digest_size_get, NULL, _hmac_HMAC_digest_size_DOCSTR},
+#endif
+
+static PyObject *
+_hmac_HMAC_digest_size_get_impl(HMACObject *self);
+
+static PyObject *
+_hmac_HMAC_digest_size_get(HMACObject *self, void *Py_UNUSED(context))
+{
+    return _hmac_HMAC_digest_size_get_impl(self);
+}
 
 PyDoc_STRVAR(_hmac_compute_md5__doc__,
 "compute_md5($module, key, msg, /)\n"
@@ -351,4 +554,4 @@ _hmac_compute_blake2b_32(PyObject *module, PyObject *const *args, Py_ssize_t nar
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=02933e59cf87411a input=a9049054013a1b77]*/
+/*[clinic end generated code: output=f599b10cfef85564 input=a9049054013a1b77]*/
