@@ -108,24 +108,24 @@
 
 /* Enumeration indicating the underlying hash function used by HMAC. */
 typedef enum HMAC_Hash_Kind {
-    Py_HMAC_Hash_unknown = 0,
+    Py_hmac_kind_hmac_unknown = 0,
     /* MD5 */
-    Py_HMAC_Hash_md5,
+    Py_hmac_kind_hmac_md5,
     /* SHA-1 */
-    Py_HMAC_Hash_sha1,
+    Py_hmac_kind_hmac_sha1,
     /* SHA-2 family */
-    Py_HMAC_Hash_sha2_224,
-    Py_HMAC_Hash_sha2_256,
-    Py_HMAC_Hash_sha2_384,
-    Py_HMAC_Hash_sha2_512,
+    Py_hmac_kind_hmac_sha2_224,
+    Py_hmac_kind_hmac_sha2_256,
+    Py_hmac_kind_hmac_sha2_384,
+    Py_hmac_kind_hmac_sha2_512,
     /* SHA-3 family */
-    Py_HMAC_Hash_sha3_224,
-    Py_HMAC_Hash_sha3_256,
-    Py_HMAC_Hash_sha3_384,
-    Py_HMAC_Hash_sha3_512,
+    Py_hmac_kind_hmac_sha3_224,
+    Py_hmac_kind_hmac_sha3_256,
+    Py_hmac_kind_hmac_sha3_384,
+    Py_hmac_kind_hmac_sha3_512,
     /* Blake family */
-    Py_HMAC_Hash_blake2s_32,
-    Py_HMAC_Hash_blake2b_32,
+    Py_hmac_kind_hmac_blake2s_32,
+    Py_hmac_kind_hmac_blake2b_32,
 } HMAC_Hash_Kind;
 
 /* Function pointer type for HACL* streaming HMAC update functions. */
@@ -202,7 +202,7 @@ static const py_hmac_hinfo py_hmac_static_hinfo[] = {
 #define Py_HMAC_HINFO_ENTRY(HACL_HID, HLIB_NAME, HLIB_ALTN, OSSL_NAME)  \
 {                                                                       \
     Py_STRINGIFY(HACL_HID), NULL,                                       \
-    Py_HMAC_Hash_## HACL_HID,                                           \
+    Py_hmac_kind_hmac_ ## HACL_HID,                                     \
     Py_hmac_## HACL_HID ##_block_size,                                  \
     Py_hmac_## HACL_HID ##_digest_size,                                 \
     Py_hmac_## HACL_HID ##_update_func,                                 \
@@ -235,6 +235,10 @@ static const py_hmac_hinfo py_hmac_static_hinfo[] = {
 
 typedef struct hmacmodule_state {
     _Py_hashtable_t *hinfo_table;
+
+    PyObject *hashlib_constructs;  // Proxy Mapping from allowed digest mod to names
+    PyObject *hashlib_unsupported_digestmod_error;
+
     PyTypeObject *hmac_type;
 
     PyObject *str_lower;
@@ -272,8 +276,6 @@ class _hmac.HMAC "HMACObject *" "clinic_state()->hmac_type"
 
 // --- HMAC Object ------------------------------------------------------------
 
-typedef struct HMAC_Hacl_Context HMAC_Hacl_Context;
-
 typedef struct HMAC_State {
     uint8_t *key;       // user-specified key
     Py_ssize_t keylen;  // key length in bytes
@@ -304,12 +306,11 @@ typedef struct HMACObject {
 
 #define _PyHMACObject_CAST(PTR)   ((HMACObject *)(PTR))
 
-static int
-find_hash_info_by_name(hmacmodule_state *state,
-                       PyObject *name, const py_hmac_hinfo **info)
+static inline int
+find_hash_info_by_utf8name(hmacmodule_state *state,
+                           const char *utf8name,
+                           const py_hmac_hinfo **info)
 {
-    assert(PyUnicode_Check(name));
-    const char *utf8name = PyUnicode_AsUTF8(name);
     if (utf8name == NULL) {
         *info = NULL;
         return -1;
@@ -319,35 +320,39 @@ find_hash_info_by_name(hmacmodule_state *state,
 }
 
 static int
-find_hash_info_by_func(hmacmodule_state *state,
-                       PyObject *func, const py_hmac_hinfo **info)
+find_hash_info_by_name(hmacmodule_state *state,
+                       PyObject *name,
+                       const py_hmac_hinfo **info)
 {
-    assert(PyCallable_Check(func));
-    return 0;
+    int rc = find_hash_info_by_utf8name(state, PyUnicode_AsUTF8(name), info);
+    if (rc == 0) {
+        // try to find an alternative using the lowercase name
+        PyObject *lower = PyObject_CallMethodNoArgs(name, state->str_lower);
+        if (lower == NULL) {
+            return -1;
+        }
+        rc = find_hash_info_by_utf8name(state, PyUnicode_AsUTF8(lower), info);
+        Py_DECREF(lower);
+    }
+    return rc;
 }
 
 static int
 find_hash_info(hmacmodule_state *state,
-               PyObject *str_or_fun, const py_hmac_hinfo **info)
+               PyObject *ref, const py_hmac_hinfo **info)
 {
-    if (PyUnicode_Check(str_or_fun)) {
-        int rc = find_hash_info_by_name(state, str_or_fun, info);
-        if (rc == 0) {
-            // try to find an alternative using the lowercase name
-            PyObject *lowername = PyObject_CallMethodNoArgs(str_or_fun,
-                                                            state->str_lower);
-            if (lowername == NULL) {
-                return -1;
-            }
-            rc = find_hash_info_by_name(state, lowername, info);
-            Py_DECREF(lowername);
-        }
+    if (PyUnicode_Check(ref)) {
+        return find_hash_info_by_name(state, ref, info);
+    }
+    PyObject *hashlib_name = NULL;
+    int rc = PyMapping_GetOptionalItem(state->hashlib_constructs,
+                                       ref, &hashlib_name);
+    if (rc <= 0) {
         return rc;
     }
-    if (PyCallable_Check(str_or_fun)) {
-        return find_hash_info_by_func(state, str_or_fun, info);
-    }
-    return 0;
+    rc = find_hash_info_by_name(state, hashlib_name, info);
+    Py_DECREF(hashlib_name);
+    return rc;
 }
 
 // --- HMAC object ------------------------------------------------------------
@@ -437,8 +442,8 @@ _hmac_new_impl(PyObject *module, PyObject *keyobj, PyObject *msgobj,
     }
     if (rc == 0) {
         assert(info == NULL);
-        // TODO: use a dedicated exception instead
-        PyErr_Format(PyExc_ValueError, "unsupported hash type: %R", digestmod);
+        PyErr_Format(state->hashlib_unsupported_digestmod_error,
+                     "unsupported hash type: %R", digestmod);
         return NULL;
     }
 
@@ -461,6 +466,7 @@ _hmac_new_impl(PyObject *module, PyObject *keyobj, PyObject *msgobj,
     }
     PyObject_GC_Track(self);
     return (PyObject *)self;
+
 error:
     Py_DECREF(self);
     return NULL;
@@ -487,14 +493,16 @@ hmac_copy_state(HMACObject *out, const HMACObject *src)
 /*[clinic input]
 _hmac.HMAC.copy
 
+    cls: defining_class
+
 Return a copy ("clone") of the HMAC object.
 [clinic start generated code]*/
 
 static PyObject *
-_hmac_HMAC_copy_impl(HMACObject *self)
-/*[clinic end generated code: output=7f9ef0ac9e5ec264 input=b7889c62bd126c6a]*/
+_hmac_HMAC_copy_impl(HMACObject *self, PyTypeObject *cls)
+/*[clinic end generated code: output=a955bfa55b65b215 input=17b2c0ad0b147e36]*/
 {
-    hmacmodule_state *state = get_hmacmodule_state_by_cls(Py_TYPE(self));
+    hmacmodule_state *state = get_hmacmodule_state_by_cls(cls);
     HMACObject *copy = PyObject_GC_New(HMACObject, state->hmac_type);
     if (copy == NULL) {
         return NULL;
@@ -564,7 +572,7 @@ hmac_digest_compute(uint8_t *digest, HMACObject *self)
 
 #if PY_SSIZE_T_MAX > UINT32_MAX
     if (msglen > (Py_ssize_t)UINT32_MAX) {
-        if (self->update == NULL) {
+        if (self->update == NULL || self->digest == NULL) {
             PyErr_SetNone(PyExc_NotImplementedError);
             return -1;
         }
@@ -1074,10 +1082,8 @@ error:
 }
 
 static int
-hmacmodule_exec(PyObject *module)
+hmacmodule_init_hash_info_table(hmacmodule_state *state)
 {
-    hmacmodule_state *state = get_hmacmodule_state(module);
-
     state->hinfo_table = py_hmac_hinfo_ht_new();
     if (state->hinfo_table == NULL) {
         // An exception other than a memory error can be raised
@@ -1088,22 +1094,74 @@ hmacmodule_exec(PyObject *module)
         }
         return -1;
     }
+    return 0;
+}
 
-    state->hmac_type = (PyTypeObject *)PyType_FromModuleAndSpec(module,
+static int
+hmacmodule_init_hmac_type(PyObject *hmac_module, hmacmodule_state *state)
+{
+    state->hmac_type = (PyTypeObject *)PyType_FromModuleAndSpec(hmac_module,
                                                                 &HMAC_Type_spec,
                                                                 NULL);
     if (state->hmac_type == NULL) {
         return -1;
     }
-    if (PyModule_AddType(module, state->hmac_type) < 0) {
+    if (PyModule_AddType(hmac_module, state->hmac_type) < 0) {
         return -1;
     }
+    return 0;
+}
 
+static int
+hmacmodule_init_from_hashlib(hmacmodule_state *state)
+{
+    PyObject *_hashlib = PyImport_ImportModule("_hashlib");
+    if (_hashlib == NULL) {
+        return -1;
+    }
+#define IMPORT_FROM_HASHLIB(VAR, NAME)                  \
+    do {                                                \
+        (VAR) = PyObject_GetAttrString(_hashlib, NAME); \
+        if ((VAR) == NULL) {                            \
+            Py_DECREF(_hashlib);                        \
+            return -1;                                  \
+        }                                               \
+    } while (0)
+
+    IMPORT_FROM_HASHLIB(state->hashlib_constructs, "_constructors");
+    IMPORT_FROM_HASHLIB(state->hashlib_unsupported_digestmod_error,
+                        "UnsupportedDigestmodError");
+#undef IMPORT_FROM_HASHLIB
+    Py_DECREF(_hashlib);
+    return 0;
+}
+
+static int
+hmacmodule_init_strings(hmacmodule_state *state)
+{
     state->str_lower = PyUnicode_FromString("lower");
     if (state->str_lower == NULL) {
         return -1;
     }
+    return 0;
+}
 
+static int
+hmacmodule_exec(PyObject *module)
+{
+    hmacmodule_state *state = get_hmacmodule_state(module);
+    if (hmacmodule_init_hash_info_table(state) < 0) {
+        return -1;
+    }
+    if (hmacmodule_init_from_hashlib(state) < 0) {
+        return -1;
+    }
+    if (hmacmodule_init_hmac_type(module, state) < 0) {
+        return -1;
+    }
+    if (hmacmodule_init_strings(state) < 0) {
+        return -1;
+    }
     return 0;
 }
 
@@ -1112,6 +1170,8 @@ hmacmodule_traverse(PyObject *mod, visitproc visit, void *arg)
 {
     Py_VISIT(Py_TYPE(mod));
     hmacmodule_state *state = get_hmacmodule_state(mod);
+    Py_VISIT(state->hashlib_constructs);
+    Py_VISIT(state->hashlib_unsupported_digestmod_error);
     Py_VISIT(state->hmac_type);
     Py_VISIT(state->str_lower);
     return 0;
@@ -1125,6 +1185,8 @@ hmacmodule_clear(PyObject *mod)
         _Py_hashtable_destroy(state->hinfo_table);
         state->hinfo_table = NULL;
     }
+    Py_CLEAR(state->hashlib_constructs);
+    Py_CLEAR(state->hashlib_unsupported_digestmod_error);
     Py_CLEAR(state->hmac_type);
     Py_CLEAR(state->str_lower);
     return 0;

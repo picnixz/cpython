@@ -85,15 +85,19 @@ PyDoc_STRVAR(_hmac_HMAC_copy__doc__,
 "Return a copy (\"clone\") of the HMAC object.");
 
 #define _HMAC_HMAC_COPY_METHODDEF    \
-    {"copy", (PyCFunction)_hmac_HMAC_copy, METH_NOARGS, _hmac_HMAC_copy__doc__},
+    {"copy", _PyCFunction_CAST(_hmac_HMAC_copy), METH_METHOD|METH_FASTCALL|METH_KEYWORDS, _hmac_HMAC_copy__doc__},
 
 static PyObject *
-_hmac_HMAC_copy_impl(HMACObject *self);
+_hmac_HMAC_copy_impl(HMACObject *self, PyTypeObject *cls);
 
 static PyObject *
-_hmac_HMAC_copy(HMACObject *self, PyObject *Py_UNUSED(ignored))
+_hmac_HMAC_copy(HMACObject *self, PyTypeObject *cls, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
 {
-    return _hmac_HMAC_copy_impl(self);
+    if (nargs || (kwnames && PyTuple_GET_SIZE(kwnames))) {
+        PyErr_SetString(PyExc_TypeError, "copy() takes no arguments");
+        return NULL;
+    }
+    return _hmac_HMAC_copy_impl(self, cls);
 }
 
 PyDoc_STRVAR(_hmac_HMAC_update__doc__,
@@ -554,4 +558,4 @@ _hmac_compute_blake2b_32(PyObject *module, PyObject *const *args, Py_ssize_t nar
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=f599b10cfef85564 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=d7b6d587eb6e134a input=a9049054013a1b77]*/
