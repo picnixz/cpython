@@ -398,12 +398,10 @@ hmac_new_state(HMACObject *self,
         return -1;
     }
 
-    size_t keysize = sizeof(uint8_t) * keylen;  // guaranteed to fit
-    memcpy(self->state->key, key, keysize);
+    memcpy(self->state->key, key, sizeof(uint8_t) * keylen);
     self->state->keylen = keylen;
 
-    size_t msgsize = sizeof(uint8_t) * msglen;  // guaranteed to fit
-    memcpy(self->state->msg, msg, msgsize);
+    memcpy(self->state->msg, msg, sizeof(uint8_t) * msglen);
     self->state->msglen = msglen;
 
     return 0;
