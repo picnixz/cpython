@@ -19,7 +19,7 @@ PyDoc_STRVAR(_hmac_new__doc__,
 
 static PyObject *
 _hmac_new_impl(PyObject *module, PyObject *keyobj, PyObject *msgobj,
-               PyObject *digestmod);
+               PyObject *hash_info_ref);
 
 static PyObject *
 _hmac_new(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
@@ -54,7 +54,7 @@ _hmac_new(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *k
     Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 1;
     PyObject *keyobj;
     PyObject *msgobj = NULL;
-    PyObject *digestmod = NULL;
+    PyObject *hash_info_ref = NULL;
 
     args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 3, 0, argsbuf);
     if (!args) {
@@ -70,9 +70,9 @@ _hmac_new(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *k
             goto skip_optional_pos;
         }
     }
-    digestmod = args[2];
+    hash_info_ref = args[2];
 skip_optional_pos:
-    return_value = _hmac_new_impl(module, keyobj, msgobj, digestmod);
+    return_value = _hmac_new_impl(module, keyobj, msgobj, hash_info_ref);
 
 exit:
     return return_value;
@@ -558,4 +558,4 @@ _hmac_compute_blake2b_32(PyObject *module, PyObject *const *args, Py_ssize_t nar
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=d7b6d587eb6e134a input=a9049054013a1b77]*/
+/*[clinic end generated code: output=485bdeec42ad581b input=a9049054013a1b77]*/
