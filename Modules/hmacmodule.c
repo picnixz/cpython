@@ -37,8 +37,6 @@
 #define Py_OpenSSL_LN_MISSING                   NULL
 #define Py_OpenSSL_NID_MISSING                  -1
 
-#define Py_hmac_hash_max_digest_size            64
-
 /* MD-5 */
 // HACL_HID = md5
 #define Py_hmac_md5_block_size                  64
@@ -225,8 +223,8 @@
 #define Py_hmac_blake2s_32_update_func          NULL
 #define Py_hmac_blake2s_32_digest_func          NULL
 #define Py_hmac_blake2s_32_compute_func         Hacl_HMAC_compute_blake2s_32
-#if defined(LN_blake2s256) && defined(NID_blake2s256)
 
+#if defined(LN_blake2s256) && defined(NID_blake2s256)
 #  define Py_OpenSSL_LN_blake2s_32              LN_blake2s256
 #  define Py_OpenSSL_NID_blake2s_32             NID_blake2s256
 #else
@@ -398,20 +396,6 @@ get_hmacmodule_state_by_cls(PyTypeObject *cls)
     return (hmacmodule_state *)state;
 }
 
-// --- HMAC module clinic configuration ---------------------------------------
-
-typedef struct HMACObject HMACObject;
-
-/*[clinic input]
-module _hmac
-class _hmac.HMAC "HMACObject *" "clinic_state()->hmac_type"
-[clinic start generated code]*/
-/*[clinic end generated code: output=da39a3ee5e6b4b0d input=c8bab73fde49ba8a]*/
-
-#define clinic_state()  (get_hmacmodule_state_by_cls(Py_TYPE(self)))
-#include "clinic/hmacmodule.c.h"
-#undef clinic_state
-
 // --- HMAC Object ------------------------------------------------------------
 
 typedef struct HMAC_State {
@@ -441,8 +425,19 @@ typedef struct HMACObject {
 
 #define _PyHMACObject_CAST(PTR)   ((HMACObject *)(PTR))
 
-// --- Helpers ----------------------------------------------------------------
+// --- HMAC module clinic configuration ---------------------------------------
 
+/*[clinic input]
+module _hmac
+class _hmac.HMAC "HMACObject *" "clinic_state()->hmac_type"
+[clinic start generated code]*/
+/*[clinic end generated code: output=da39a3ee5e6b4b0d input=c8bab73fde49ba8a]*/
+
+#define clinic_state()  (get_hmacmodule_state_by_cls(Py_TYPE(self)))
+#include "clinic/hmacmodule.c.h"
+#undef clinic_state
+
+// --- Helpers ----------------------------------------------------------------
 
 /* Static information used to construct the hash table. */
 static const py_hmac_hinfo py_hmac_static_hinfo[] = {
@@ -729,7 +724,7 @@ _hmac_new_impl(PyObject *module, PyObject *keyobj, PyObject *msgobj,
 
     const py_hmac_hinfo *info = find_hash_info(state, hash_info_ref);
     if (info == NULL) {
-        assert(!PyErr_Occurred());
+        assert(PyErr_Occurred());
         return NULL;
     }
 
@@ -869,7 +864,6 @@ hmac_digest_compute(uint8_t *digest, HMACObject *self)
     uint8_t *msg = self->state->msg;
     Py_ssize_t msglen = self->state->msglen;
 
-
 #if PY_SSIZE_T_MAX > UINT32_MAX
     if (msglen > (Py_ssize_t)UINT32_MAX) {
         if (self->api.update == NULL || self->api.digest == NULL) {
@@ -947,6 +941,7 @@ static PyObject *
 _hmac_HMAC_name_get_impl(HMACObject *self)
 /*[clinic end generated code: output=ae693f09778d96d9 input=41c2c5dd1cf47fbc]*/
 {
+    assert(self->name != NULL);
     return PyUnicode_FromFormat("hmac-%U", self->name);
 }
 
@@ -978,6 +973,7 @@ static PyObject *
 HMACObject_repr(PyObject *self)
 {
     HMACObject *hmac = _PyHMACObject_CAST(self);
+    assert(hmac->name != NULL);
     return PyUnicode_FromFormat("<%U HMAC object @ %p>", hmac->name, self);
 }
 
@@ -1023,7 +1019,7 @@ static PyType_Slot HMACObject_Type_slots[] = {
     {Py_tp_getset, HMACObject_getsets},
     {Py_tp_dealloc, HMACObject_dealloc},
     {Py_tp_traverse, HMACObject_traverse},
-    {0, NULL} /* Sentinel */
+    {0, NULL} /* sentinel */
 };
 
 static PyType_Spec HMAC_Type_spec = {
@@ -1298,7 +1294,6 @@ _hmac_compute_blake2b_32_impl(PyObject *module, PyObject *key, PyObject *msg)
 
 static PyMethodDef hmacmodule_methods[] = {
     _HMAC_NEW_METHODDEF
-    /* one-shot HMAC functions */
     /* one-shot dispatcher */
     _HMAC_COMPUTE_DIGEST_METHODDEF
     /* one-shot methods */
