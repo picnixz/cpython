@@ -46,8 +46,10 @@
 #define Py_hmac_md5_state_malloc_func           NULL
 #define Py_hmac_md5_state_copy_func             NULL
 
+#define Py_hmac_md5_setup_func                  NULL
 #define Py_hmac_md5_update_func                 NULL
 #define Py_hmac_md5_digest_func                 NULL
+
 #define Py_hmac_md5_compute_func                Hacl_HMAC_compute_md5
 
 #define Py_OpenSSL_LN_md5                       LN_md5
@@ -62,8 +64,10 @@
 #define Py_hmac_sha1_state_malloc_func          NULL
 #define Py_hmac_sha1_state_copy_func            NULL
 
+#define Py_hmac_sha1_setup_func                 NULL
 #define Py_hmac_sha1_update_func                NULL
 #define Py_hmac_sha1_digest_func                NULL
+
 #define Py_hmac_sha1_compute_func               Hacl_HMAC_compute_sha1
 
 #define Py_OpenSSL_LN_sha1                      LN_sha1
@@ -78,8 +82,10 @@
 #define Py_hmac_sha2_224_state_malloc_func      NULL
 #define Py_hmac_sha2_224_state_copy_func        NULL
 
+#define Py_hmac_sha2_224_setup_func             NULL
 #define Py_hmac_sha2_224_update_func            NULL
 #define Py_hmac_sha2_224_digest_func            NULL
+
 #define Py_hmac_sha2_224_compute_func           Hacl_HMAC_compute_sha2_224
 
 #define Py_OpenSSL_LN_sha2_224                  LN_sha224
@@ -93,8 +99,10 @@
 #define Py_hmac_sha2_256_state_malloc_func      NULL
 #define Py_hmac_sha2_256_state_copy_func        NULL
 
+#define Py_hmac_sha2_256_setup_func             NULL
 #define Py_hmac_sha2_256_update_func            NULL
 #define Py_hmac_sha2_256_digest_func            NULL
+
 #define Py_hmac_sha2_256_compute_func           Hacl_HMAC_compute_sha2_256
 
 #define Py_OpenSSL_LN_sha2_256                  LN_sha256
@@ -108,8 +116,10 @@
 #define Py_hmac_sha2_384_state_malloc_func      NULL
 #define Py_hmac_sha2_384_state_copy_func        NULL
 
+#define Py_hmac_sha2_384_setup_func             NULL
 #define Py_hmac_sha2_384_update_func            NULL
 #define Py_hmac_sha2_384_digest_func            NULL
+
 #define Py_hmac_sha2_384_compute_func           Hacl_HMAC_compute_sha2_384
 
 #define Py_OpenSSL_LN_sha2_384                  LN_sha384
@@ -123,8 +133,10 @@
 #define Py_hmac_sha2_512_state_malloc_func      NULL
 #define Py_hmac_sha2_512_state_copy_func        NULL
 
+#define Py_hmac_sha2_512_setup_func             NULL
 #define Py_hmac_sha2_512_update_func            NULL
 #define Py_hmac_sha2_512_digest_func            NULL
+
 #define Py_hmac_sha2_512_compute_func           Hacl_HMAC_compute_sha2_512
 
 #define Py_OpenSSL_LN_sha2_512                  LN_sha512
@@ -139,8 +151,10 @@
 #define Py_hmac_sha3_224_state_malloc_func      NULL
 #define Py_hmac_sha3_224_state_copy_func        NULL
 
+#define Py_hmac_sha3_224_setup_func             NULL
 #define Py_hmac_sha3_224_update_func            NULL
 #define Py_hmac_sha3_224_digest_func            NULL
+
 #define Py_hmac_sha3_224_compute_func           Hacl_HMAC_compute_sha3_224
 
 #if defined(LN_sha3_224) && defined(NID_sha3_224)
@@ -159,8 +173,10 @@
 #define Py_hmac_sha3_256_state_malloc_func      NULL
 #define Py_hmac_sha3_256_state_copy_func        NULL
 
+#define Py_hmac_sha3_256_setup_func             NULL
 #define Py_hmac_sha3_256_update_func            NULL
 #define Py_hmac_sha3_256_digest_func            NULL
+
 #define Py_hmac_sha3_256_compute_func           Hacl_HMAC_compute_sha3_256
 
 #if defined(LN_sha3_256) && defined(NID_sha3_256)
@@ -179,8 +195,10 @@
 #define Py_hmac_sha3_384_state_malloc_func      NULL
 #define Py_hmac_sha3_384_state_copy_func        NULL
 
+#define Py_hmac_sha3_384_setup_func             NULL
 #define Py_hmac_sha3_384_update_func            NULL
 #define Py_hmac_sha3_384_digest_func            NULL
+
 #define Py_hmac_sha3_384_compute_func           Hacl_HMAC_compute_sha3_384
 
 #if defined(LN_sha3_384) && defined(NID_sha3_384)
@@ -199,8 +217,10 @@
 #define Py_hmac_sha3_512_state_malloc_func      NULL
 #define Py_hmac_sha3_512_state_copy_func        NULL
 
+#define Py_hmac_sha3_512_setup_func             NULL
 #define Py_hmac_sha3_512_update_func            NULL
 #define Py_hmac_sha3_512_digest_func            NULL
+
 #define Py_hmac_sha3_512_compute_func           Hacl_HMAC_compute_sha3_512
 
 #if defined(LN_sha3_512) && defined(NID_sha3_512)
@@ -220,8 +240,10 @@
 #define Py_hmac_blake2s_32_state_malloc_func    NULL
 #define Py_hmac_blake2s_32_state_copy_func      NULL
 
+#define Py_hmac_blake2s_32_setup_func           NULL
 #define Py_hmac_blake2s_32_update_func          NULL
 #define Py_hmac_blake2s_32_digest_func          NULL
+
 #define Py_hmac_blake2s_32_compute_func         Hacl_HMAC_compute_blake2s_32
 
 #if defined(LN_blake2s256) && defined(NID_blake2s256)
@@ -240,8 +262,10 @@
 #define Py_hmac_blake2b_32_state_malloc_func    NULL
 #define Py_hmac_blake2b_32_state_copy_func      NULL
 
+#define Py_hmac_blake2b_32_setup_func           NULL
 #define Py_hmac_blake2b_32_update_func          NULL
 #define Py_hmac_blake2b_32_digest_func          NULL
+
 #define Py_hmac_blake2b_32_compute_func         Hacl_HMAC_compute_blake2b_32
 
 #if defined(LN_blake2b512) && defined(NID_blake2b512)
@@ -274,6 +298,8 @@ typedef enum HMAC_Hash_Kind {
     Py_hmac_kind_hmac_blake2b_32,
 } HMAC_Hash_Kind;
 
+typedef Hacl_Streaming_Types_error_code hacl_exit_code;
+
 /* Function pointer type for HACL* streaming HMAC state allocation */
 typedef void *(*HACL_HMAC_state_malloc_func)(void);
 /* Function pointer type for HACL* streaming HMAC state deallocation */
@@ -281,12 +307,14 @@ typedef void (*HACL_HMAC_state_free_func)(void *state);
 /* Function pointer type for HACL* streaming HMAC state copy */
 typedef void *(*HACL_HMAC_state_copy_func)(void *state);
 
+/* Function pointer type for HACL* streaming HMAC setup functions. */
+typedef hacl_exit_code
+(*HACL_HMAC_setup_func)(void *state, uint8_t *key, uint32_t len);
 /* Function pointer type for HACL* streaming HMAC update functions. */
-typedef Hacl_Streaming_Types_error_code
+typedef hacl_exit_code
 (*HACL_HMAC_update_func)(void *state, uint8_t *buf, uint32_t len);
-
 /* Function pointer type for HACL* streaming HMAC digest functions. */
-typedef Hacl_Streaming_Types_error_code
+typedef hacl_exit_code
 (*HACL_HMAC_digest_func)(void *state, uint8_t *out);
 
 /* Function pointer type for 1-shot HACL* HMAC functions. */
@@ -294,22 +322,83 @@ typedef void
 (*HACL_HMAC_compute_func)(uint8_t *out,
                           uint8_t *key, uint32_t keylen,
                           uint8_t *msg, uint32_t msglen);
-
 /* Function pointer type for 1-shot HACL* HMAC CPython AC functions. */
 typedef PyObject *
 (*PYAC_HMAC_compute_func)(PyObject *module, PyObject *key, PyObject *msg);
 
+/*
+ * Check that LEN fits can be safely casted to uint32_t.
+ *
+ * On non-DEBUG builds, this is a no-op.
+ */
 #if PY_SSIZE_T_MAX > UINT32_MAX
-#define Py_HMAC_HACL_UPDATE_LOOP(UPDATE_FUNC, HACL_STATE, BUF, LEN) \
+#define Py_CHECK_HACL_UINT32_T_LENGTH(LEN) \
+    assert((Py_ssize_t)(LEN) <= (Py_ssize_t)UINT32_MAX)
+#else
+#define Py_CHECK_HACL_UINT32_T_LENGTH(LEN)
+#endif
+
+/*
+ * Call the HACL* HMAC-HASH update function on the given data.
+ *
+ * On DEBUG builds, the 'ERRACTION' statements are executed if
+ * the 'UPDATE_FUNC' returned a non-successful HACL* exit code.
+ */
+#ifndef Py_NDEBUG
+#define Py_HMAC_HACL_UPDATE_ONCE(                                   \
+    UPDATE_FUNC, HACL_STATE, BUF, LEN,                              \
+    ALGORITHM, ERRACTION                                            \
+)                                                                   \
     do {                                                            \
-        while (LEN > UINT32_MAX) {                                  \
-            UPDATE_FUNC(HACL_STATE, BUF, UINT32_MAX);               \
-            LEN -= UINT32_MAX;                                      \
-            BUF += UINT32_MAX;                                      \
+        Py_CHECK_HACL_UINT32_T_LENGTH(LEN);                         \
+        hacl_exit_code code = UPDATE_FUNC(HACL_STATE, BUF,          \
+                                          (uint32_t)(LEN));         \
+        if (handle_hacl_exit_code(code, (ALGORITHM)) < 0) {         \
+            ERRACTION;                                              \
         }                                                           \
     } while (0)
 #else
-#define Py_HMAC_HACL_UPDATE_LOOP(UPDATE_FUNC, HACL_STATE, BUF, LEN)
+#define Py_HMAC_HACL_UPDATE_ONCE(                                   \
+    UPDATE_FUNC, HACL_STATE, BUF, LEN,                              \
+    _ALGORITHM, _ERRACTION                                          \
+)                                                                   \
+    (void)UPDATE_FUNC(HACL_STATE, BUF, (uint32_t)(LEN))
+#endif
+
+/*
+ * Repetivively call the HACL* HMAC-HASH update function on the given data
+ * until the buffer length LEN is strictly less than UINT32_MAX.
+ *
+ * On builds with PY_SSIZE_T_MAX <= UINT32_MAX, this is a no-op since
+ * one-shot encoding functions should be used instead.
+ *
+ * The buffer 'BUF' (resp. 'LEN') is advanced (resp. decremented) by UINT32_MAX
+ * after each call to 'UPDATE_FUNC'. On DEBUG builds, each call to 'UPDATE_FUNC'
+ * is verified and the 'ERRACTION' statements are executed if a non-successful
+ * HACL* exit code is being returned.
+ *
+ * In particular, 'BUF' and 'LEN' must be variable names and not expressions
+ * on their own.
+ */
+#if PY_SSIZE_T_MAX > UINT32_MAX
+#define Py_HMAC_HACL_UPDATE_LOOP(                               \
+    UPDATE_FUNC, HACL_STATE, BUF, LEN,                          \
+    ALGORITHM, ERRACTION                                        \
+)                                                               \
+    do {                                                        \
+        while ((Py_ssize_t)LEN > (Py_ssize_t)UINT32_MAX) {      \
+            Py_HMAC_HACL_UPDATE_ONCE(UPDATE_FUNC, HACL_STATE,   \
+                                     BUF, UINT32_MAX,           \
+                                     ALGORITHM, ERRACTION);     \
+            BUF += UINT32_MAX;                                  \
+            LEN -= UINT32_MAX;                                  \
+        }                                                       \
+    } while (0)
+#else
+#define Py_HMAC_HACL_UPDATE_LOOP(                               \
+    UPDATE_FUNC, HACL_STATE, BUF, LEN,                          \
+    _ALGORITHM, _ERRACTION                                      \
+)
 #endif
 
 /*
@@ -320,6 +409,7 @@ typedef struct py_hmac_hacl_api {
     HACL_HMAC_state_free_func free;
     HACL_HMAC_state_copy_func copy;
 
+    HACL_HMAC_setup_func setup;
     HACL_HMAC_update_func update;
     HACL_HMAC_digest_func digest;
 
@@ -443,11 +533,15 @@ class _hmac.HMAC "HMACObject *" "clinic_state()->hmac_type"
 static const py_hmac_hinfo py_hmac_static_hinfo[] = {
 #define Py_HMAC_HINFO_HACL_API(HACL_HID)                                \
     {                                                                   \
+        /* state management */                                          \
         .malloc = Py_hmac_## HACL_HID ##_state_malloc_func,             \
         .free = Py_hmac_## HACL_HID ##_state_free_func,                 \
         .copy = Py_hmac_## HACL_HID ##_state_copy_func,                 \
+        /* streaming helpers */                                         \
+        .setup = Py_hmac_## HACL_HID ##_setup_func,                     \
         .update = Py_hmac_## HACL_HID ##_update_func,                   \
         .digest = Py_hmac_## HACL_HID ##_digest_func,                   \
+        /* one-shot helpers */                                          \
         .compute = &Py_hmac_## HACL_HID ##_compute_func,                \
         .compute_py = &_hmac_compute_## HACL_HID ##_impl,               \
     }
@@ -487,7 +581,11 @@ static const py_hmac_hinfo py_hmac_static_hinfo[] = {
     /* sentinel */
     {
         NULL, NULL, Py_hmac_kind_unknown, 0, 0,
-        {NULL, NULL},
+        {
+            NULL, NULL, NULL,
+            NULL, NULL, NULL,
+            NULL, NULL,
+        },
         NULL, Py_OpenSSL_LN_MISSING, Py_OpenSSL_NID_MISSING,
         0,
     },
@@ -635,6 +733,41 @@ has_uint32_t_buffer_length(const Py_buffer *buffer)
 #else
     return 1;
 #endif
+}
+
+/*
+ * Handle the HACL* exit code.
+ *
+ * If 'code' represents a successful operation, this returns 0.
+ * Otherwise, this sets an appropriate exception and returns -1.
+ */
+static int
+handle_hacl_exit_code(hacl_exit_code code, const char *algorithm)
+{
+    switch (code) {
+        case Hacl_Streaming_Types_Success: {
+            return 0;
+        }
+        case Hacl_Streaming_Types_InvalidAlgorithm: {
+            // only makes sense it an algorithm is known at call time
+            assert(algorithm != NULL);
+            PyErr_Format(PyExc_ValueError,
+                         "invalid algorithm: %s", algorithm);
+            return -1;
+        }
+        case Hacl_Streaming_Types_InvalidLength: {
+            PyErr_SetString(PyExc_ValueError, "invalid length");
+            return -1;
+        }
+        case Hacl_Streaming_Types_MaximumLengthExceeded: {
+            PyErr_SetString(PyExc_OverflowError, "maximum length exceeded");
+            return -1;
+        }
+        default: {
+            PyErr_Format(PyExc_RuntimeError, "HACL* exit code: %d", (int)code);
+            return -1;
+        }
+    }
 }
 
 // --- HMAC object ------------------------------------------------------------
@@ -850,7 +983,6 @@ _hmac_HMAC_update(HMACObject *self, PyObject *msgobj)
     memcpy(self->state->msg + self->state->msglen, msg.buf, msg.len);
     self->state->msglen = reslen;
     LEAVE_HASHLIB(self);
-
     PyBuffer_Release(&msg);
     return Py_NewRef(self);
 }
@@ -865,23 +997,39 @@ hmac_digest_compute(uint8_t *digest, HMACObject *self)
     Py_ssize_t msglen = self->state->msglen;
 
 #if PY_SSIZE_T_MAX > UINT32_MAX
+    // Technically speaking, we could hash the key to make it small
+    // but it would require to call the hash functions ourselves and
+    // not rely on HACL* implementation anymore. As such, we explicitly
+    // reject keys that do not fit on 32-bits until HACL* handles them.
+    if (keylen > (Py_ssize_t)UINT32_MAX) {
+        PyErr_SetString(PyExc_OverflowError,
+                        "key length exceeds UINT32_MAX");
+        return -1;
+    }
+
     if (msglen > (Py_ssize_t)UINT32_MAX) {
-        if (self->api.update == NULL || self->api.digest == NULL) {
-            PyErr_SetNone(PyExc_NotImplementedError);
+        hacl_exit_code rc = self->api.setup(self->state, key, keylen);
+        const char *algorithm = PyUnicode_AsUTF8(self->name);
+        if (handle_hacl_exit_code(rc, algorithm) < 0) {
             return -1;
         }
-        else {
-            Py_HMAC_HACL_UPDATE_LOOP(self->api.update, self->state, msg, msglen);
-            self->api.update(self->state, msg, msglen);
-            self->api.digest(self->state, digest);
-            return 0;
-        }
+        Py_HMAC_HACL_UPDATE_LOOP(
+            self->api.update, self->state, msg, msglen,
+            algorithm, return -1,
+        );
+        Py_HMAC_HACL_UPDATE_ONCE(
+            self->api.update, self->state, msg, msglen,
+            algorithm, return -1
+        );
+        rc = self->api.digest(self->state, digest);
+        return handle_hacl_exit_code(rc, algorithm);
     }
     else {
         // We can do one-shot encoding.
         self->api.compute(digest, key, keylen, msg, msglen);
     }
 #else
+    // We can do one-shot encoding.
     self->api.compute(digest, key, keylen, msg, msglen);
 #endif
     return 0;
