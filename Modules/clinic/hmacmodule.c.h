@@ -211,6 +211,38 @@ _hmac_HMAC_digest_size_get(HMACObject *self, void *Py_UNUSED(context))
     return _hmac_HMAC_digest_size_get_impl(self);
 }
 
+PyDoc_STRVAR(_hmac_compute_digest__doc__,
+"compute_digest($module, key, msg, digestmod, /)\n"
+"--\n"
+"\n");
+
+#define _HMAC_COMPUTE_DIGEST_METHODDEF    \
+    {"compute_digest", _PyCFunction_CAST(_hmac_compute_digest), METH_FASTCALL, _hmac_compute_digest__doc__},
+
+static PyObject *
+_hmac_compute_digest_impl(PyObject *module, PyObject *key, PyObject *msg,
+                          PyObject *digestmod);
+
+static PyObject *
+_hmac_compute_digest(PyObject *module, PyObject *const *args, Py_ssize_t nargs)
+{
+    PyObject *return_value = NULL;
+    PyObject *key;
+    PyObject *msg;
+    PyObject *digestmod;
+
+    if (!_PyArg_CheckPositional("compute_digest", nargs, 3, 3)) {
+        goto exit;
+    }
+    key = args[0];
+    msg = args[1];
+    digestmod = args[2];
+    return_value = _hmac_compute_digest_impl(module, key, msg, digestmod);
+
+exit:
+    return return_value;
+}
+
 PyDoc_STRVAR(_hmac_compute_md5__doc__,
 "compute_md5($module, key, msg, /)\n"
 "--\n"
@@ -558,4 +590,4 @@ _hmac_compute_blake2b_32(PyObject *module, PyObject *const *args, Py_ssize_t nar
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=485bdeec42ad581b input=a9049054013a1b77]*/
+/*[clinic end generated code: output=412adf9966a95966 input=a9049054013a1b77]*/

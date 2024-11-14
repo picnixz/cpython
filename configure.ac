@@ -7387,6 +7387,29 @@ WITH_SAVE_ENV([
   ])
 ])
 
+WITH_SAVE_ENV([
+  LIBS="$LIBS $LIBCRYPTO_LIBS"
+  CFLAGS="$CFLAGS $OPENSSL_INCLUDES"
+  LDFLAGS="$LDFLAGS $OPENSSL_LDFLAGS $OPENSSL_LDFLAGS_RPATH"
+
+  AC_CACHE_CHECK([whether OpenSSL provides required hmac module APIs], [ac_cv_working_openssl_hmac], [
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([
+      #include <openssl/evp.h>
+      #include <openssl/objects.h>
+      #if OPENSSL_VERSION_NUMBER < 0x10101000L
+        #error "OpenSSL >= 1.1.1 is required"
+      #endif
+    ], [
+      OBJ_nid2sn(NID_md5);
+      OBJ_nid2sn(NID_sha1);
+      OBJ_nid2sn(NID_sha224);
+      OBJ_nid2sn(NID_sha256);
+      OBJ_nid2sn(NID_sha384);
+      OBJ_nid2sn(NID_sha512);
+    ])], [ac_cv_working_openssl_hmac=yes], [ac_cv_working_openssl_hmac=no])
+  ])
+])
+
 # ssl module default cipher suite string
 AH_TEMPLATE([PY_SSL_DEFAULT_CIPHERS],
   [Default cipher suites list for ssl module.
@@ -7459,15 +7482,6 @@ for builtin_hash in $with_builtin_hashlib_hashes; do
     )
 done
 IFS=$as_save_IFS
-
-# builtin HACL* HMAC module
-AC_MSG_CHECKING([for --with-builtin-hashlib-hmac=yes,no])
-AC_ARG_WITH([builtin-hashlib-hmac],
-  [AS_HELP_STRING([--with-builtin-hashlib-hmac],
-    [use builtin HACL* HMAC when possible @<:@default is yes@:>@])],
-  [with_builtin_hashlib_hmac=$with_val],
-  [with_builtin_hashlib_hmac=yes])
-AC_MSG_RESULT([$with_builtin_hashlib_hmac])
 
 # Check whether to disable test modules. Once set, setup.py will not build
 # test extension modules and "make install" will not install test suites.
@@ -7810,10 +7824,6 @@ PY_STDLIB_MOD([_sha2], [test "$with_builtin_sha2" = yes])
 PY_STDLIB_MOD([_sha3], [test "$with_builtin_sha3" = yes])
 PY_STDLIB_MOD([_blake2], [test "$with_builtin_blake2" = yes])
 
-dnl We always build the '_hmac' extension module but falls back
-dnl to the Python implementation if needs arise.
-PY_STDLIB_MOD([_hmac], [test "$with_builtin_hashlib_hmac" = yes])
-
 LIBHACL_CFLAGS='-I$(srcdir)/Modules/_hacl -I$(srcdir)/Modules/_hacl/include -D_BSD_SOURCE -D_DEFAULT_SOURCE $(PY_STDMODULE_CFLAGS) $(CCSHARED)'
 case "$ac_sys_system" in
   Linux*)
@@ -7929,6 +7939,9 @@ PY_STDLIB_MOD([_ssl], [], [test "$ac_cv_working_openssl_ssl" = yes],
   [$OPENSSL_INCLUDES], [$OPENSSL_LDFLAGS $OPENSSL_LDFLAGS_RPATH $OPENSSL_LIBS])
 PY_STDLIB_MOD([_hashlib], [], [test "$ac_cv_working_openssl_hashlib" = yes],
   [$OPENSSL_INCLUDES], [$OPENSSL_LDFLAGS $OPENSSL_LDFLAGS_RPATH $LIBCRYPTO_LIBS])
+PY_STDLIB_MOD([_hmac], [], [test "$ac_cv_working_openssl_hmac" = yes],
+  [$LIBHACL_CFLAGS $OPENSSL_INCLUDES],
+  [$LIBHACL_CFLAGS Modules/_hacl/libHacl_HMAC.a $OPENSSL_LDFLAGS $OPENSSL_LDFLAGS_RPATH $LIBCRYPTO_LIBS])
 
 dnl test modules
 PY_STDLIB_MOD([_testcapi],
