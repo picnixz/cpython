@@ -833,8 +833,8 @@ hmac_new_state(HMACObject *self,
 _hmac.new
 
     key as keyobj: object
+    digestmod as hash_info_ref: object
     msg as msgobj: object(c_default="NULL") = b''
-    digestmod as hash_info_ref: object(c_default="NULL") = None
 
 Return a new HMAC object.
 [clinic start generated code]*/
@@ -844,12 +844,6 @@ _hmac_new_impl(PyObject *module, PyObject *keyobj, PyObject *msgobj,
                PyObject *hash_info_ref)
 /*[clinic end generated code: output=7c7573a427d58758 input=f8460345fc1a26bc]*/
 {
-    if (hash_info_ref == NULL) {
-        PyErr_SetString(PyExc_TypeError,
-                        "Missing required parameter 'digestmod'.");
-        return NULL;
-    }
-
     hmacmodule_state *state = get_hmacmodule_state(module);
 
     const py_hmac_hinfo *info = find_hash_info(state, hash_info_ref);
@@ -1012,7 +1006,7 @@ hmac_digest_compute(uint8_t *digest, HMACObject *self)
         }
         Py_HMAC_HACL_UPDATE_LOOP(
             self->api.update, self->state, msg, msglen,
-            algorithm, return -1,
+            algorithm, return -1
         );
         Py_HMAC_HACL_UPDATE_ONCE(
             self->api.update, self->state, msg, msglen,
