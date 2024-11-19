@@ -9,7 +9,7 @@ preserve
 #include "pycore_modsupport.h"    // _PyArg_UnpackKeywords()
 
 PyDoc_STRVAR(_hmac_new__doc__,
-"new($module, /, key, msg=b\'\', digestmod=None)\n"
+"new($module, /, key, digestmod, msg=b\'\')\n"
 "--\n"
 "\n"
 "Return a new HMAC object.");
@@ -18,8 +18,8 @@ PyDoc_STRVAR(_hmac_new__doc__,
     {"new", _PyCFunction_CAST(_hmac_new), METH_FASTCALL|METH_KEYWORDS, _hmac_new__doc__},
 
 static PyObject *
-_hmac_new_impl(PyObject *module, PyObject *keyobj, PyObject *msgobj,
-               PyObject *hash_info_ref);
+_hmac_new_impl(PyObject *module, PyObject *keyobj, PyObject *hash_info_ref,
+               PyObject *msgobj);
 
 static PyObject *
 _hmac_new(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames)
@@ -34,7 +34,7 @@ _hmac_new(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *k
         PyObject *ob_item[NUM_KEYWORDS];
     } _kwtuple = {
         .ob_base = PyVarObject_HEAD_INIT(&PyTuple_Type, NUM_KEYWORDS)
-        .ob_item = { &_Py_ID(key), &_Py_ID(msg), &_Py_ID(digestmod), },
+        .ob_item = { &_Py_ID(key), &_Py_ID(digestmod), &_Py_ID(msg), },
     };
     #undef NUM_KEYWORDS
     #define KWTUPLE (&_kwtuple.ob_base.ob_base)
@@ -43,7 +43,7 @@ _hmac_new(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *k
     #  define KWTUPLE NULL
     #endif  // !Py_BUILD_CORE
 
-    static const char * const _keywords[] = {"key", "msg", "digestmod", NULL};
+    static const char * const _keywords[] = {"key", "digestmod", "msg", NULL};
     static _PyArg_Parser _parser = {
         .keywords = _keywords,
         .fname = "new",
@@ -51,28 +51,24 @@ _hmac_new(PyObject *module, PyObject *const *args, Py_ssize_t nargs, PyObject *k
     };
     #undef KWTUPLE
     PyObject *argsbuf[3];
-    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 1;
+    Py_ssize_t noptargs = nargs + (kwnames ? PyTuple_GET_SIZE(kwnames) : 0) - 2;
     PyObject *keyobj;
+    PyObject *hash_info_ref;
     PyObject *msgobj = NULL;
-    PyObject *hash_info_ref = NULL;
 
-    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser, 1, 3, 0, argsbuf);
+    args = _PyArg_UnpackKeywords(args, nargs, NULL, kwnames, &_parser,
+            /*minpos*/ 2, /*maxpos*/ 3, /*minkw*/ 0, /*varpos*/ 0, argsbuf);
     if (!args) {
         goto exit;
     }
     keyobj = args[0];
+    hash_info_ref = args[1];
     if (!noptargs) {
         goto skip_optional_pos;
     }
-    if (args[1]) {
-        msgobj = args[1];
-        if (!--noptargs) {
-            goto skip_optional_pos;
-        }
-    }
-    hash_info_ref = args[2];
+    msgobj = args[2];
 skip_optional_pos:
-    return_value = _hmac_new_impl(module, keyobj, msgobj, hash_info_ref);
+    return_value = _hmac_new_impl(module, keyobj, hash_info_ref, msgobj);
 
 exit:
     return return_value;
@@ -590,4 +586,4 @@ _hmac_compute_blake2b_32(PyObject *module, PyObject *const *args, Py_ssize_t nar
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=412adf9966a95966 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=77ebb31a8a2178fa input=a9049054013a1b77]*/
