@@ -326,11 +326,7 @@ typedef void
 typedef PyObject *
 (*PYAC_HMAC_compute_func)(PyObject *module, PyObject *key, PyObject *msg);
 
-/*
- * Check that LEN fits can be safely casted to uint32_t.
- *
- * On non-DEBUG builds, this is a no-op.
- */
+/* Assert that 'LEN' can be safely casted to uint32_t. */
 #if PY_SSIZE_T_MAX > UINT32_MAX
 #define Py_CHECK_HACL_UINT32_T_LENGTH(LEN) \
     assert((Py_ssize_t)(LEN) <= (Py_ssize_t)UINT32_MAX)
@@ -343,6 +339,8 @@ typedef PyObject *
  *
  * On DEBUG builds, the 'ERRACTION' statements are executed if
  * the 'UPDATE_FUNC' returned a non-successful HACL* exit code.
+ *
+ * The buffer 'BUF' and its length 'LEN' are left untouched.
  */
 #ifndef Py_NDEBUG
 #define Py_HMAC_HACL_UPDATE_ONCE(                                   \
@@ -366,14 +364,14 @@ typedef PyObject *
 #endif
 
 /*
- * Repetivively call the HACL* HMAC-HASH update function on the given data
- * until the buffer length LEN is strictly less than UINT32_MAX.
+ * Repetivively call the HACL* HMAC-HASH update function 'UPDATE_FUNC' on the
+ * given data until the buffer length 'LEN' is strictly less than UINT32_MAX.
  *
  * On builds with PY_SSIZE_T_MAX <= UINT32_MAX, this is a no-op since
- * one-shot encoding functions should be used instead.
+ * one-shot encoding functions can be used instead.
  *
  * The buffer 'BUF' (resp. 'LEN') is advanced (resp. decremented) by UINT32_MAX
- * after each call to 'UPDATE_FUNC'. On DEBUG builds, each call to 'UPDATE_FUNC'
+ * after each call to 'UPDATE_FUNC'. On DEBUG builds, each 'UPDATE_FUNC' call
  * is verified and the 'ERRACTION' statements are executed if a non-successful
  * HACL* exit code is being returned.
  *
@@ -749,7 +747,7 @@ handle_hacl_exit_code(hacl_exit_code code, const char *algorithm)
             return 0;
         }
         case Hacl_Streaming_Types_InvalidAlgorithm: {
-            // only makes sense it an algorithm is known at call time
+            // only makes sense if an algorithm is known at call time
             assert(algorithm != NULL);
             PyErr_Format(PyExc_ValueError,
                          "invalid algorithm: %s", algorithm);
