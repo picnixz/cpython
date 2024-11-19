@@ -749,8 +749,7 @@ handle_hacl_exit_code(hacl_exit_code code, const char *algorithm)
         case Hacl_Streaming_Types_InvalidAlgorithm: {
             // only makes sense if an algorithm is known at call time
             assert(algorithm != NULL);
-            PyErr_Format(PyExc_ValueError,
-                         "invalid algorithm: %s", algorithm);
+            PyErr_Format(PyExc_ValueError, "invalid algorithm: %s", algorithm);
             return -1;
         }
         case Hacl_Streaming_Types_InvalidLength: {
@@ -762,7 +761,7 @@ handle_hacl_exit_code(hacl_exit_code code, const char *algorithm)
             return -1;
         }
         default: {
-            PyErr_Format(PyExc_RuntimeError, "HACL* exit code: %d", (int)code);
+            PyErr_Format(PyExc_RuntimeError, "HACL* failure (code: %d)", code);
             return -1;
         }
     }
