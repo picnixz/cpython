@@ -429,6 +429,20 @@ _hacl_hmac_state_free(HACL_HMAC_state *state)
 }
 
 /*
+ * Copy the HACL* internal state.
+ *
+ * Return 0 on success and -1 on failure.
+ */
+static int
+_hacl_hmac_state_copy(HACL_HMAC_state **out, HACL_HMAC_state *state)
+{
+    assert(out != NULL);
+    // TODO: use agile API & decide whether out should be a double pointer
+    PyErr_SetNone(PyExc_NotImplementedError);
+    return -1;
+}
+
+/*
  * Update the HACL* internal state.
  */
 static hacl_errno_t
@@ -602,6 +616,75 @@ has_uint32_t_buffer_length(const Py_buffer *buffer)
 }
 
 // --- HMAC object ------------------------------------------------------------
+
+/*
+ * Copy HMAC hash information from 'src' to 'out'.
+ */
+static void
+hmac_copy_hinfo(HMACObject *out, const HMACObject *src)
+{
+    assert(src->name != NULL);
+    out->name = Py_NewRef(src->name);
+    assert(src->kind != Py_hmac_kind_hash_unknown);
+    out->kind = src->kind;
+    assert(src->block_size <= Py_hmac_hash_max_block_size);
+    out->block_size = src->block_size;
+    assert(src->digest_size <= Py_hmac_hash_max_digest_size);
+    out->digest_size = src->digest_size;
+    assert(src->api.compute != NULL);
+    assert(src->api.compute_py != NULL);
+    out->api = src->api;
+}
+
+/*
+ * Copy the HMAC internal state from 'src' to 'out'.
+ *
+ * The internal state of 'out' must not already exist.
+ *
+ * Return 0 on success and -1 on failure.
+ */
+static int
+hmac_copy_state(HMACObject *out, const HMACObject *src)
+{
+    assert(src->state != NULL);
+    assert(out->state == NULL);
+    return _hacl_hmac_state_copy(&out->state, src->state);
+}
+
+/*[clinic input]
+_hmac.HMAC.copy
+
+    cls: defining_class
+
+Return a copy ("clone") of the HMAC object.
+[clinic start generated code]*/
+
+static PyObject *
+_hmac_HMAC_copy_impl(HMACObject *self, PyTypeObject *cls)
+/*[clinic end generated code: output=a955bfa55b65b215 input=17b2c0ad0b147e36]*/
+{
+    hmacmodule_state *state = get_hmacmodule_state_by_cls(cls);
+    HMACObject *copy = PyObject_GC_New(HMACObject, state->hmac_type);
+    if (copy == NULL) {
+        return NULL;
+    }
+
+    ENTER_HASHLIB(self);
+    /* copy hash information */
+    hmac_copy_hinfo(copy, self);
+    /* copy internal state */
+    int rc = hmac_copy_state(copy, self);
+    LEAVE_HASHLIB(self);
+
+    if (rc < 0) {
+        Py_DECREF(copy);
+        return NULL;
+    }
+
+    HASHLIB_INIT_MUTEX(copy);
+    PyObject_GC_Track(copy);
+    return (PyObject *)copy;
+}
 
 /*
  * Update the HMAC object with the given buffer.
@@ -833,6 +916,7 @@ static PyMethodDef HMACObject_methods[] = {
     _HMAC_HMAC_UPDATE_METHODDEF
     _HMAC_HMAC_DIGEST_METHODDEF
     _HMAC_HMAC_HEXDIGEST_METHODDEF
+    _HMAC_HMAC_COPY_METHODDEF
     {NULL, NULL, 0, NULL}
 };
 
