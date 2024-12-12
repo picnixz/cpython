@@ -19,6 +19,7 @@
 
 #include "Python.h"
 #include "pycore_hashtable.h"
+#include "pycore_strhex.h"              // _Py_strhex()
 
 // Small mismatch between the variable names Python defines as part of configure
 // at the ones HACL* expects to be set in order to enable those headers.
@@ -685,6 +686,67 @@ _hmac_HMAC_update_impl(HMACObject *self, PyObject *msgobj)
     return rc < 0 ? NULL : Py_None;
 }
 
+/*
+ * Compute the HMAC-HASH digest from the internal HACL* state.
+ *
+ * At least 'self->digest_size' bytes should be available
+ * in the 'digest' pointed memory area.
+ *
+ * Return 0 on success and -1 on failure.
+ */
+static inline int
+hmac_digest_compute(HMACObject *self, uint8_t *digest)
+{
+    assert(digest != NULL);
+    Hacl_Streaming_HMAC_digest(self->state, digest, self->digest_size);
+    return 0;
+}
+
+/*[clinic input]
+_hmac.HMAC.digest
+
+Return the digest of the bytes passed to the update() method so far.
+[clinic start generated code]*/
+
+static PyObject *
+_hmac_HMAC_digest_impl(HMACObject *self)
+/*[clinic end generated code: output=5bf3cc5862d26ada input=46ada2d337ddcc85]*/
+{
+    assert(self->digest_size <= Py_hmac_hash_max_digest_size);
+    uint8_t digest[Py_hmac_hash_max_digest_size];
+    ENTER_HASHLIB(self);
+    int rc = hmac_digest_compute(self, digest);
+    LEAVE_HASHLIB(self);
+    if (rc < 0) {
+        return NULL;
+    }
+    return PyBytes_FromStringAndSize((const char *)digest, self->digest_size);
+}
+
+/*[clinic input]
+_hmac.HMAC.hexdigest
+
+Return hexadecimal digest of the bytes passed to the update() method so far.
+
+This may be used to exchange the value safely in email or other non-binary
+environments.
+[clinic start generated code]*/
+
+static PyObject *
+_hmac_HMAC_hexdigest_impl(HMACObject *self)
+/*[clinic end generated code: output=6659807a09ae14ec input=a7460247846b4c15]*/
+{
+    assert(self->digest_size <= Py_hmac_hash_max_digest_size);
+    uint8_t digest[Py_hmac_hash_max_digest_size];
+    ENTER_HASHLIB(self);
+    int rc = hmac_digest_compute(self, digest);
+    LEAVE_HASHLIB(self);
+    if (rc < 0) {
+        return NULL;
+    }
+    return _Py_strhex((const char *)digest, self->digest_size);
+}
+
 /*[clinic input]
 @getter
 _hmac.HMAC.name
@@ -759,6 +821,8 @@ HMACObject_traverse(PyObject *self, visitproc visit, void *arg)
 
 static PyMethodDef HMACObject_methods[] = {
     _HMAC_HMAC_UPDATE_METHODDEF
+    _HMAC_HMAC_DIGEST_METHODDEF
+    _HMAC_HMAC_HEXDIGEST_METHODDEF
     {NULL, NULL, 0, NULL} /* sentinel */
 };
 
