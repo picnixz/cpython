@@ -137,6 +137,9 @@ typedef enum HMAC_Hash_Kind {
     /* Blake family */
     Py_hmac_kind_hmac_blake2s_32,
     Py_hmac_kind_hmac_blake2b_32,
+    /* Blake runtime family (should not be used statically) */
+    Py_hmac_kind_hmac_blake2s_128,
+    Py_hmac_kind_hmac_blake2b_256,
 } HMAC_Hash_Kind;
 
 typedef Hacl_Streaming_Types_error_code hacl_errno_t;
@@ -317,6 +320,9 @@ typedef struct hmacmodule_state {
     PyTypeObject *hmac_type;
     /* interned strings */
     PyObject *str_lower;
+
+    bool can_run_simd128;
+    bool can_run_simd256;
 } hmacmodule_state;
 
 static inline hmacmodule_state *
@@ -380,6 +386,31 @@ class _hmac.HMAC "HMACObject *" "clinic_state()->hmac_type"
 // - Helpers with the "hmac_" prefix act on HMAC objects and accept buffers
 //   whose length fits on 32-bit or 64-bit integers (depending on the host
 //   machine).
+
+static HMAC_Hash_Kind
+narrow_hmac_hash_kind(hmacmodule_state *state, HMAC_Hash_Kind kind)
+{
+    switch (kind) {
+        case Py_hmac_kind_hmac_blake2s_32: {
+#if HACL_CAN_COMPILE_SIMD128
+            if (state->can_run_simd128) {
+                return Py_hmac_kind_hmac_blake2s_128;
+            }
+#endif
+            return kind;
+        }
+        case Py_hmac_kind_hmac_blake2b_32: {
+#if HACL_CAN_COMPILE_SIMD256
+            if (state->can_run_simd256) {
+                return Py_hmac_kind_hmac_blake2b_256;
+            }
+#endif
+            return kind;
+        }
+        default:
+            return kind;
+    }
+}
 
 /*
  * Handle the HACL* exit code.
@@ -1299,6 +1330,16 @@ py_hmac_hinfo_ht_new(void)
 
     for (const py_hmac_hinfo *e = py_hmac_static_hinfo; e->name != NULL; e++) {
         assert(e->kind != Py_hmac_kind_hash_unknown);
+        /*
+         * The real kind of a HMAC object is obtained only once and is
+         * derived from the kind of the 'py_hmac_hinfo' that could be
+         * found by its name. Since 'blake2s_128' is not a valid name,
+         * as it could depend on the runtime CPUID features, we do not
+         * allow a static 'py_hmac_hinfo' entry to be created.
+         */
+        assert(e->kind != Py_hmac_kind_hmac_blake2s_128);
+        assert(e->kind != Py_hmac_kind_hmac_blake2b_256);
+
         py_hmac_hinfo *value = PyMem_Malloc(sizeof(py_hmac_hinfo));
         if (value == NULL) {
             PyErr_NoMemory();
@@ -1402,6 +1443,24 @@ hmacmodule_init_strings(hmacmodule_state *state)
     return 0;
 }
 
+static void
+hmacmodule_init_cpu_features(hmacmodule_state *state)
+{
+#if HACL_CAN_COMPILE_SIMD128
+    // TODO: use py_cpuid_features (gh-125022) to deduce what we want
+    state->can_run_simd128 = false;
+#else
+    state->can_run_simd128 = false;
+#endif
+
+#if HACL_CAN_COMPILE_SIMD256
+    // TODO: use py_cpuid_features (gh-125022) to deduce what we want
+    state->can_run_simd128 = false;
+#else
+    state->can_run_simd128 = false;
+#endif
+}
+
 static int
 hmacmodule_exec(PyObject *module)
 {
@@ -1418,6 +1477,7 @@ hmacmodule_exec(PyObject *module)
     if (hmacmodule_init_strings(state) < 0) {
         return -1;
     }
+    hmacmodule_init_cpu_features(state);
     return 0;
 }
 
