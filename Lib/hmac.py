@@ -3,7 +3,6 @@
 Implements the HMAC algorithm as described by RFC 2104.
 """
 
-import warnings as _warnings
 try:
     import _hashlib as _hashopenssl
 except ImportError:
@@ -13,6 +12,11 @@ except ImportError:
 else:
     compare_digest = _hashopenssl.compare_digest
     _functype = type(_hashopenssl.openssl_sha256)  # builtin type
+
+try:
+    import _hmac
+except ImportError:
+    _hmac = None
 
 import hashlib as _hashlib
 
@@ -55,16 +59,32 @@ class HMAC:
         if not digestmod:
             raise TypeError("Missing required argument 'digestmod'.")
 
+        self.__init(key, msg, digestmod)
+
+    def __init(self, key, msg, digestmod):
         if _hashopenssl and isinstance(digestmod, (str, _functype)):
             try:
-                self._init_hmac(key, msg, digestmod)
+                self._init_openssl_hmac(key, msg, digestmod)
+                return
             except _hashopenssl.UnsupportedDigestmodError:
-                self._init_old(key, msg, digestmod)
-        else:
-            self._init_old(key, msg, digestmod)
+                pass
+        if _hmac and isinstance(digestmod, str):
+            try:
+                self._init_builtin_hmac(key, msg, digestmod)
+                return
+            except _hmac.UnknownHashError:
+                pass
+        self._init_old(key, msg, digestmod)
 
-    def _init_hmac(self, key, msg, digestmod):
+    def _init_openssl_hmac(self, key, msg, digestmod):
         self._hmac = _hashopenssl.hmac_new(key, msg, digestmod=digestmod)
+        self.digest_size = self._hmac.digest_size
+        self.block_size = self._hmac.block_size
+
+    _init_hmac = _init_openssl_hmac  # for backward compatibility (if any)
+
+    def _init_builtin_hmac(self, key, msg, digestmod):
+        self._hmac = _hmac.new(key, msg, digestmod=digestmod)
         self.digest_size = self._hmac.digest_size
         self.block_size = self._hmac.block_size
 
@@ -84,11 +104,15 @@ class HMAC:
         if hasattr(self._inner, 'block_size'):
             blocksize = self._inner.block_size
             if blocksize < 16:
+                import warnings as _warnings
+
                 _warnings.warn('block_size of %d seems too small; using our '
                                'default of %d.' % (blocksize, self.blocksize),
                                RuntimeWarning, 2)
                 blocksize = self.blocksize
         else:
+            import warnings as _warnings
+
             _warnings.warn('No block_size attribute on given digest object; '
                            'Assuming %d.' % (self.blocksize),
                            RuntimeWarning, 2)
@@ -197,6 +221,12 @@ def digest(key, msg, digest):
         try:
             return _hashopenssl.hmac_digest(key, msg, digest)
         except _hashopenssl.UnsupportedDigestmodError:
+            pass
+
+    if _hmac is not None and isinstance(digest, str):
+        try:
+            return _hmac.compute_digest(key, msg, digest)
+        except (OverflowError, _hmac.UnknownHashError):
             pass
 
     if callable(digest):
