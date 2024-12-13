@@ -20,9 +20,13 @@
 #include "Python.h"
 #include "pycore_hashtable.h"
 
+#include "_hacl/Hacl_HMAC.h"
+
 #include <stdbool.h>
 
 // --- HMAC underlying hash function static information -----------------------
+
+#define UINT32_MAX_AS_SSIZE_T                   (Py_ssize_t)UINT32_MAX
 
 #define Py_hmac_hash_max_block_size             128
 #define Py_hmac_hash_max_digest_size            64
@@ -32,53 +36,77 @@
 #define Py_hmac_md5_block_size                  64
 #define Py_hmac_md5_digest_size                 16
 
+#define Py_hmac_md5_compute_func                Hacl_HMAC_compute_md5
+
 /* SHA-1 family */
 // HACL_HID = sha1
 #define Py_hmac_sha1_block_size                 64
 #define Py_hmac_sha1_digest_size                20
+
+#define Py_hmac_sha1_compute_func               Hacl_HMAC_compute_sha1
 
 /* SHA-2 family */
 // HACL_HID = sha2_224
 #define Py_hmac_sha2_224_block_size             64
 #define Py_hmac_sha2_224_digest_size            28
 
+#define Py_hmac_sha2_224_compute_func           Hacl_HMAC_compute_sha2_224
+
 // HACL_HID = sha2_256
 #define Py_hmac_sha2_256_block_size             64
 #define Py_hmac_sha2_256_digest_size            32
+
+#define Py_hmac_sha2_256_compute_func           Hacl_HMAC_compute_sha2_256
 
 // HACL_HID = sha2_384
 #define Py_hmac_sha2_384_block_size             128
 #define Py_hmac_sha2_384_digest_size            48
 
+#define Py_hmac_sha2_384_compute_func           Hacl_HMAC_compute_sha2_384
+
 // HACL_HID = sha2_512
 #define Py_hmac_sha2_512_block_size             128
 #define Py_hmac_sha2_512_digest_size            64
+
+#define Py_hmac_sha2_512_compute_func           Hacl_HMAC_compute_sha2_512
 
 /* SHA-3 family */
 // HACL_HID = sha3_224
 #define Py_hmac_sha3_224_block_size             144
 #define Py_hmac_sha3_224_digest_size            28
 
+#define Py_hmac_sha3_224_compute_func           Hacl_HMAC_compute_sha3_224
+
 // HACL_HID = sha3_256
 #define Py_hmac_sha3_256_block_size             136
 #define Py_hmac_sha3_256_digest_size            32
+
+#define Py_hmac_sha3_256_compute_func           Hacl_HMAC_compute_sha3_256
 
 // HACL_HID = sha3_384
 #define Py_hmac_sha3_384_block_size             104
 #define Py_hmac_sha3_384_digest_size            48
 
+#define Py_hmac_sha3_384_compute_func           Hacl_HMAC_compute_sha3_384
+
 // HACL_HID = sha3_512
 #define Py_hmac_sha3_512_block_size             72
 #define Py_hmac_sha3_512_digest_size            64
+
+#define Py_hmac_sha3_512_compute_func           Hacl_HMAC_compute_sha3_512
 
 /* Blake2 family */
 // HACL_HID = blake2s_32
 #define Py_hmac_blake2s_32_block_size           64
 #define Py_hmac_blake2s_32_digest_size          32
 
+#define Py_hmac_blake2s_32_compute_func         Hacl_HMAC_compute_blake2s_32
+
 // HACL_HID = blake2b_32
 #define Py_hmac_blake2b_32_block_size           128
 #define Py_hmac_blake2b_32_digest_size          64
+
+#define Py_hmac_blake2b_32_compute_func         Hacl_HMAC_compute_blake2b_32
 
 /* Enumeration indicating the underlying hash function used by HMAC. */
 typedef enum HMAC_Hash_Kind {
@@ -101,6 +129,23 @@ typedef enum HMAC_Hash_Kind {
     Py_hmac_kind_hmac_blake2s_32,
     Py_hmac_kind_hmac_blake2b_32,
 } HMAC_Hash_Kind;
+
+/* Function pointer type for 1-shot HACL* HMAC functions. */
+typedef void
+(*HACL_HMAC_compute_func)(uint8_t *out,
+                          uint8_t *key, uint32_t keylen,
+                          uint8_t *msg, uint32_t msglen);
+/* Function pointer type for 1-shot HACL* HMAC CPython AC functions. */
+typedef PyObject *
+(*PYAC_HMAC_compute_func)(PyObject *module, PyObject *key, PyObject *msg);
+
+/*
+ * HACL* HMAC minimal interface.
+ */
+typedef struct py_hmac_hacl_api {
+    HACL_HMAC_compute_func compute;
+    PYAC_HMAC_compute_func compute_py;
+} py_hmac_hacl_api;
 
 /*
  * HMAC underlying hash function static information.
@@ -126,6 +171,9 @@ typedef struct py_hmac_hinfo {
     HMAC_Hash_Kind kind;
     uint32_t block_size;
     uint32_t digest_size;
+
+    /* HACL* HMAC API */
+    py_hmac_hacl_api api;
 
     const char *hashlib_name;   /* hashlib preferred name (default: name) */
 
@@ -160,6 +208,13 @@ module _hmac
 
 /* Static information used to construct the hash table. */
 static const py_hmac_hinfo py_hmac_static_hinfo[] = {
+#define Py_HMAC_HINFO_HACL_API(HACL_HID)                                \
+    {                                                                   \
+        /* one-shot helpers */                                          \
+        .compute = &Py_hmac_## HACL_HID ##_compute_func,                \
+        .compute_py = NULL,                                             \
+    }
+
 #define Py_HMAC_HINFO_ENTRY(HACL_HID, HLIB_NAME)            \
     {                                                       \
         .name = Py_STRINGIFY(HACL_HID),                     \
@@ -167,6 +222,7 @@ static const py_hmac_hinfo py_hmac_static_hinfo[] = {
         .kind = Py_hmac_kind_hmac_ ## HACL_HID,             \
         .block_size = Py_hmac_## HACL_HID ##_block_size,    \
         .digest_size = Py_hmac_## HACL_HID ##_digest_size,  \
+        .api = Py_HMAC_HINFO_HACL_API(HACL_HID),            \
         .hashlib_name = HLIB_NAME,                          \
         .refcnt = 0,                                        \
     }
@@ -193,6 +249,7 @@ static const py_hmac_hinfo py_hmac_static_hinfo[] = {
     /* sentinel */
     {
         NULL, NULL, Py_hmac_kind_hash_unknown, 0, 0,
+        {NULL, NULL},
         NULL,
         0,
     },
