@@ -779,7 +779,7 @@ static inline uintptr_t _mi_random_shuffle(uintptr_t x) {
 int    _mi_os_numa_node_get(mi_os_tld_t* tld);
 size_t _mi_os_numa_node_count_get(void);
 
-extern _Atomic(size_t) _mi_numa_node_count;
+extern _ATOMIC(size_t) _mi_numa_node_count;
 static inline int _mi_os_numa_node(mi_os_tld_t* tld) {
   if mi_likely(mi_atomic_load_relaxed(&_mi_numa_node_count) == 1) { return 0; }
   else return _mi_os_numa_node_get(tld);

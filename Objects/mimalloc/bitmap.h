@@ -20,6 +20,8 @@ between the fields. (This is used in arena allocation)
 #ifndef MI_BITMAP_H
 #define MI_BITMAP_H
 
+#include "mimalloc/atomic.h"
+
 /* -----------------------------------------------------------
   Bitmap definition
 ----------------------------------------------------------- */
@@ -28,7 +30,7 @@ between the fields. (This is used in arena allocation)
 #define MI_BITMAP_FIELD_FULL   (~((size_t)0))   // all bits set
 
 // An atomic bitmap of `size_t` fields
-typedef _Atomic(size_t)  mi_bitmap_field_t;
+typedef _ATOMIC(size_t)  mi_bitmap_field_t;
 typedef mi_bitmap_field_t*  mi_bitmap_t;
 
 // A bitmap index is the index of the bit in a bitmap.

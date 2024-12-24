@@ -15,12 +15,30 @@ terms of the MIT license. A copy of the license can be found in the file
 // This is why we try to use only `uintptr_t` and `<type>*` as atomic types.
 // To gain better insight in the range of used atomics, we use explicitly named memory order operations
 // instead of passing the memory order as a parameter.
+//
+// Note on _Atomic(TYPE) vs _ATOMIC(TYPE)
+// --------------------------------------
+// CLion fails to parse "_Atomic(TYPE)" and deduces two different
+// declarations for TYPE. For instance, `extern _Atomic(size_t) var;`
+// is detected as a re-declaration of `size_t` (which is a typedef)
+// and any code using `size_t` is marked with a syntax error.
+//
+// This only happens when using `_Atomic(TYPE)` in a `typedef` or
+// an `extern` statement. Since `_Atomic(TYPE)` and `_Atomic TYPE`
+// are equivalent in this case, we replace some occurrences with
+// `_ATOMIC(TYPE)`.
+//
+// Note that CLion will *still* fail to parse it correctly but this will
+// no more pollute other code, thereby improving (a bit) the programmer's
+// life. Unfortunately, this has been a long-standing bug for CLion which
+// we hope will one day be resolved.
 // -----------------------------------------------------------------------------------------------
 
 #if defined(__cplusplus)
 // Use C++ atomics
 #include <atomic>
 #define  _Atomic(tp)            std::atomic<tp>
+#define  _ATOMIC(tp)            std::atomic<tp>
 #define  mi_atomic(name)        std::atomic_##name
 #define  mi_memory_order(name)  std::memory_order_##name
 #if (__cplusplus >= 202002L)    // c++20, see issue #571
@@ -33,12 +51,14 @@ terms of the MIT license. A copy of the license can be found in the file
 #elif defined(_MSC_VER)
 // Use MSVC C wrapper for C11 atomics
 #define  _Atomic(tp)            tp
+#define  _ATOMIC(tp)            tp
 #define  MI_ATOMIC_VAR_INIT(x)  x
 #define  mi_atomic(name)        mi_atomic_##name
 #define  mi_memory_order(name)  mi_memory_order_##name
 #else
 // Use C11 atomics
 #include <stdatomic.h>
+#define  _ATOMIC(tp)            _Atomic tp
 #define  mi_atomic(name)        atomic_##name
 #define  mi_memory_order(name)  memory_order_##name
 #if (__STDC_VERSION__ >= 201710L) // c17, see issue #735
@@ -300,7 +320,7 @@ static inline intptr_t mi_atomic_subi(_Atomic(intptr_t)*p, intptr_t sub) {
   return (intptr_t)mi_atomic_addi(p, -sub);
 }
 
-typedef _Atomic(uintptr_t) mi_atomic_once_t;
+typedef _ATOMIC(uintptr_t) mi_atomic_once_t;
 
 // Returns true only on the first invocation
 static inline bool mi_atomic_once( mi_atomic_once_t* once ) {
@@ -309,7 +329,7 @@ static inline bool mi_atomic_once( mi_atomic_once_t* once ) {
   return mi_atomic_cas_strong_acq_rel(once, &expected, (uintptr_t)1); // try to set to 1
 }
 
-typedef _Atomic(uintptr_t) mi_atomic_guard_t;
+typedef _ATOMIC(uintptr_t) mi_atomic_guard_t;
 
 // Allows only one thread to execute at a time
 #define mi_atomic_guard(guard) \
