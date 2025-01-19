@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 import os
 from site import gethistoryfile   # type: ignore[attr-defined]
 import sys
-from rlcompleter import Completer as RLCompleter
+from rlcompleter import AttributeFilter, Completer as RLCompleter
 
 from . import commands, historical_reader
 from .completing_reader import CompletingReader
@@ -338,6 +338,72 @@ class backspace_dedent(commands.Command):
 # ____________________________________________________________
 
 
+class _FilterImport(AttributeFilter):
+    """Filter imported modules.
+
+    Modules imported by a module are filtered out if:
+
+    - they are built-in modules imported by a non-built-in module,
+    - they are non-built-in modules imported by a built-in module, or
+    - they are modules imported from another package.
+
+    Imported modules are always auto-completed if they are explicitly exported.
+
+    The filter is conservative in the sense that if some condition cannot be
+    verified due to the lack of some expected attribute, the imported module
+    is still auto-completed.
+    """
+
+    def filter(self, instance, name, value, text, /, **options):
+        import types
+
+        if (
+            # non-modules are not processed by this filter
+            not isinstance(instance, types.ModuleType)
+            # non-submodules are not processed by this filter
+            or not isinstance(value, types.ModuleType)
+        ):
+            return True
+        try:
+            is_re_exported = name in instance.__all__
+        except (AttributeError, NotImplementedError, TypeError, ValueError):
+             # be conservative if __all__ is not a container of does not exist
+            return True
+        if is_re_exported:
+            # imported modules explicitly re-exported are auto-completed
+            return True
+        return self.filter_imported_module(instance, value)
+
+    def filter_imported_module(self, module, submodule):
+        spec_mod = getattr(module, '__spec__', None)
+        spec_sub = getattr(submodule, '__spec__', None)
+        if spec_mod is None or spec_sub is None:
+            # Be conservative for modules without '__spec__'.
+            return True
+        if self.is_builtin_module_spec(spec_mod):
+            # Built-in modules should not re-export non-built-in modules.
+            # XXX: What about custom interpreters and custom extensions?
+            return self.is_builtin_module_spec(spec_sub)
+        if self.is_builtin_module_spec(spec_sub):
+            # Non-built-in modules should not re-export built-in modules.
+            # XXX: What about custom interpreters and custom extensions?
+            return False
+        # Pure Python *packages* should auto-complete their submodules but not
+        # their imported modules. Only modules in the same package are shown.
+        modfile = getattr(module, '__file__', None)
+        subfile = getattr(submodule, '__file__', None)
+        if not modfile or not subfile:
+            # conservative if we cannot determine the modules' __file__
+            return True
+        # importable submodules are also completed, even if they are private
+        abs_modfile = os.path.abspath(modfile)
+        abs_subfile = os.path.abspath(subfile)
+        return abs_subfile.startswith(os.path.dirname(abs_modfile))
+
+    def is_builtin_module_spec(self, spec):
+        return getattr(spec, 'origin', None) == 'built-in'
+
+
 @dataclass(slots=True)
 class _ReadlineWrapper:
     f_in: int = -1
@@ -587,7 +653,10 @@ def _setup(namespace: Mapping[str, Any]) -> None:
     # set up namespace in rlcompleter, which requires it to be a bona fide dict
     if not isinstance(namespace, dict):
         namespace = dict(namespace)
-    _wrapper.config.readline_completer = RLCompleter(namespace).complete
+
+    completer = RLCompleter(namespace)
+    completer.add_attribute_filter(_FilterImport())
+    _wrapper.config.readline_completer = completer.complete
 
     # this is not really what readline.c does.  Better than nothing I guess
     import builtins
