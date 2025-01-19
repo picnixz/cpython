@@ -8,12 +8,13 @@ import select
 import subprocess
 import sys
 import tempfile
+import types
 from unittest import TestCase, skipUnless, skipIf
 from unittest.mock import patch
 from test.support import force_not_colorized
 from test.support import SHORT_TIMEOUT
-from test.support.import_helper import import_module
-from test.support.os_helper import unlink
+from test.support.import_helper import DirsOnSysPath, import_module
+from test.support.os_helper import temp_cwd, unlink
 
 from .support import (
     FakeConsole,
@@ -28,6 +29,7 @@ from .support import (
 from _pyrepl.console import Event
 from _pyrepl.readline import (ReadlineAlikeReader, ReadlineConfig,
                               _ReadlineWrapper)
+from _pyrepl.readline import _FilterImport
 from _pyrepl.readline import multiline_input as readline_multiline_input
 
 try:
@@ -808,7 +810,10 @@ class TestPyReplCompleter(TestCase):
     def prepare_reader(self, events, namespace):
         console = FakeConsole(events)
         config = ReadlineConfig()
-        config.readline_completer = rlcompleter.Completer(namespace).complete
+
+        completer = rlcompleter.Completer(namespace)
+        completer.add_attribute_filter(_FilterImport())
+        config.readline_completer = completer.complete
         reader = ReadlineAlikeReader(console=console, config=config)
         return reader
 
@@ -850,6 +855,36 @@ class TestPyReplCompleter(TestCase):
         reader = self.prepare_reader(events, namespace)
         output = multiline_input(reader, namespace)
         self.assertEqual(output, "python")
+
+    def test_submodules_completion(self):
+        with temp_cwd('pkg') as d, DirsOnSysPath(os.path.dirname(d)):
+            p = pathlib.Path(d)
+            p.joinpath('__init__.py').write_text('pass')
+            p.joinpath('mod.py').write_text('from . import sub')
+            p.joinpath('sub.py').write_text(
+                'import os\n'
+                'import sys\n'
+                '__all__ = ["sys"]\n'
+                'def foo(): pass'
+            )
+            namespace = {'mod': import_module('pkg.mod')}
+
+            events = code_to_events("mod.s\t\n")
+            reader = self.prepare_reader(events, namespace)
+            output = multiline_input(reader, namespace)
+            self.assertEqual(output, "mod.sub")
+
+            events = code_to_events("mod.sub.o\t\n")
+            reader = self.prepare_reader(events, namespace)
+            output = multiline_input(reader, namespace)
+            # do not complete 'os' as it is not re-exported
+            self.assertEqual(output, "mod.sub.o")
+
+            events = code_to_events("mod.sub.sy\t\n")
+            reader = self.prepare_reader(events, namespace)
+            output = multiline_input(reader, namespace)
+            # complete 'sys' as it is re-exported
+            self.assertEqual(output, "mod.sub.sys")
 
     def test_updown_arrow_with_completion_menu(self):
         """Up arrow in the middle of unfinished tab completion when the menu is displayed
