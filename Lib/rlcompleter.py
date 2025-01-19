@@ -39,7 +39,129 @@ import warnings
 
 __all__ = ["Completer"]
 
-class Completer:
+
+class Filter:
+    """Object filtering completion matches when they are gathered.
+    """
+
+    default_priority: int = 500
+    """The filter priority.
+
+    Subclasses can override this attribute to make a filter run before an other.
+    """
+
+    def __init__(self, priority=None):
+        if priority is None:
+            self.priority = self.default_priority
+        else:
+            self.priority = priority
+
+    def __repr__(self):
+        typename = f'{self.__class__.__module__}.{self.__class__.__name__}'
+        return f'<{typename}(priority={self.priority!r}) at 0x{id(self):x}>'
+
+    def filter(self, target, suggestion, value, text, /, **options):
+        """Determine if an auto-complete suggestion should be kept or not.
+
+        The 'target' is an object being queried for auto-completion.
+        The 'suggestion' is an auto-completed suggestion.
+        The 'text' is the input string to complete.
+
+        Returns True if the suggestion should be kept, or False otherwise.
+        """
+        return True
+
+
+class NamespaceFilter(Filter):
+    """Object filtering completion matching dictionary keys."""
+
+    def filter(self, namespace, key, value, text, /, **options):
+        """Determine if a dictionary key should be auto-completed or not.
+
+        The 'namespace' is a dictionary whose keys are filtered.
+        The 'key' is a dictionary key auto-complete suggestion.
+        The 'text' is the input string to complete.
+
+        Returns True if the match should be displayed, or False otherwise.
+        """
+        return True
+
+
+class AttributeFilter(Filter):
+    """Object filtering completion matching attributes."""
+
+    def filter(self, instance, name, value, text, /, **options):
+        """Determine if an attribute match should be kept or not.
+
+        The 'instance' is the object whose attribute is queried.
+        The 'name' is an attribute name auto-complete suggestion.
+        The 'text' is the input string to complete.
+
+        Returns True if the match should be displayed, or False otherwise.
+        """
+        return True
+
+
+class Filterer:
+
+    def __init__(self):
+        self.namespace_filters = []
+        self.attribute_filters = []
+
+    def _has_filter(self, filters, filter):
+        return filters and filter in filters
+
+    def _add_filter(self, filters, filter):
+        pos = -1
+        for i, f in enumerate(filters):
+            if f == filter:  # already registerd
+                return False
+            if f.priority > filter.priority:
+                # Find the first filter that has a larger priority
+                # and insert the new filter just before so that the
+                # insertion order is maintained within equal priorities.
+                pos = i
+                break
+        if pos == -1:
+            filters.append(filter)
+        else:
+            filters.insert(pos, filter)
+        return True
+
+    def _remove_filter(self, filters, filter):
+        if filters and filter in filters:
+            filters.remove(filter)
+            return True
+        return False
+
+    def _filter(self, filters, target, suggestion, value, text, /, **options):
+        for f in filters:
+            if not f.filter(target, suggestion, value, text, **options):
+                return False
+        return True
+
+    def add_namespace_filter(self, f):
+        return self._add_filter(self.namespace_filters, f)
+
+    def add_attribute_filter(self, f):
+        return self._add_filter(self.attribute_filters, f)
+
+    def remove_namespace_filter(self, f):
+        return self._remove_filter(self.namespace_filters, f)
+
+    def remove_attribute_filter(self, f):
+        return self._remove_filter(self.attribute_filters, f)
+
+    def filter_namespace(self, namespace, key, value, text, /, **options):
+        return self._filter(self.namespace_filters, namespace, key, value, text,
+                            **options)
+
+    def filter_attribute(self, instance, name, value, text, /, **options):
+        return self._filter(self.attribute_filters, instance, name, value, text,
+                            **options)
+
+
+class Completer(Filterer):
     def __init__(self, namespace = None):
         """Create a new completer for the command line.
 
@@ -54,6 +176,7 @@ class Completer:
 
         readline.set_completer(Completer(my_namespace).complete)
         """
+        Filterer.__init__(self)
 
         if namespace and not isinstance(namespace, dict):
             raise TypeError('namespace must be a dictionary')
@@ -90,10 +213,7 @@ class Completer:
 
         if state == 0:
             with warnings.catch_warnings(action="ignore"):
-                if "." in text:
-                    self.matches = self.attr_matches(text)
-                else:
-                    self.matches = self.global_matches(text)
+                self.matches = self.get_matches(text)
         try:
             return self.matches[state]
         except IndexError:
@@ -109,6 +229,11 @@ class Completer:
                 pass
 
         return word
+
+    def get_matches(self, text):
+        if "." in text:
+            return self.attr_matches(text)
+        return self.global_matches(text)
 
     def global_matches(self, text):
         """Compute matches when text is a simple name.
@@ -131,10 +256,11 @@ class Completer:
                     word = word + ' '
                 matches.append(word)
         for nspace in [self.namespace, builtins.__dict__]:
-            for word, val in nspace.items():
+            for word, value in nspace.items():
                 if word[:n] == text and word not in seen:
                     seen.add(word)
-                    matches.append(self._callable_postfix(val, word))
+                    if self.filter_namespace(nspace, word, value, text):
+                        matches.append(self._callable_postfix(value, word))
         return matches
 
     def attr_matches(self, text):
@@ -149,7 +275,7 @@ class Completer:
         with a __getattr__ hook is evaluated.
 
         """
-        m = re.match(r"(\w+(\.\w+)*)\.(\w*)", text)
+        m = re.compile(r"(\w+(\.\w+)*)\.(\w*)").match(text)
         if not m:
             return []
         expr, attr = m.group(1, 3)
@@ -158,13 +284,14 @@ class Completer:
         except Exception:
             return []
 
+        thistype = type(thisobject)
         # get the content of the object, except __builtins__
         words = set(dir(thisobject))
         words.discard("__builtins__")
 
         if hasattr(thisobject, '__class__'):
             words.add('__class__')
-            words.update(get_class_members(thisobject.__class__))
+            words.update(_iter_class_members(thisobject.__class__))
         matches = []
         n = len(attr)
         if attr == '':
@@ -178,17 +305,21 @@ class Completer:
                 if (word[:n] == attr and
                     not (noprefix and word[:n+1] == noprefix)):
                     match = "%s.%s" % (expr, word)
-                    if isinstance(getattr(type(thisobject), word, None),
-                                  property):
+                    if isinstance(getattr(thistype, word, None), property):
                         # bpo-44752: thisobject.word is a method decorated by
                         # `@property`. What follows applies a postfix if
-                        # thisobject.word is callable, but know we know that
+                        # thisobject.word is callable, but we know that
                         # this is not callable (because it is a property).
                         # Also, getattr(thisobject, word) will evaluate the
                         # property method, which is not desirable.
-                        matches.append(match)
+                        if self.filter_attribute(thisobject, word, None, text,
+                                                 owner=thistype, property=True):
+                           matches.append(match)
                         continue
-                    if (value := getattr(thisobject, word, None)) is not None:
+                    value = getattr(thisobject, word, None)
+                    if not self.filter_attribute(thisobject, word, value, text):
+                       continue
+                    if value is not None:
                         matches.append(self._callable_postfix(value, match))
                     else:
                         matches.append(match)
@@ -201,12 +332,17 @@ class Completer:
         matches.sort()
         return matches
 
+
+def _iter_class_members(klass):
+    yield from dir(klass)
+    bases = getattr(klass, '__bases__', ())
+    for base in bases:
+        yield from _iter_class_members(base)
+
+
 def get_class_members(klass):
-    ret = dir(klass)
-    if hasattr(klass,'__bases__'):
-        for base in klass.__bases__:
-            ret = ret + get_class_members(base)
-    return ret
+    return list(_iter_class_members(klass))
+
 
 try:
     import readline
