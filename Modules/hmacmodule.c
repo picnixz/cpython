@@ -163,10 +163,10 @@ static const py_hmac_hinfo py_hmac_static_hinfo[] = {
 #define Py_HMAC_HINFO_ENTRY(HACL_HID, HLIB_NAME)            \
     {                                                       \
         .name = Py_STRINGIFY(HACL_HID),                     \
-        .display_name = NULL,                               \
         .kind = Py_hmac_kind_hmac_ ## HACL_HID,             \
         .block_size = Py_hmac_## HACL_HID ##_block_size,    \
         .digest_size = Py_hmac_## HACL_HID ##_digest_size,  \
+        .display_name = NULL,                               \
         .hashlib_name = HLIB_NAME,                          \
         .refcnt = 0,                                        \
     }
