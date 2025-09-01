@@ -131,7 +131,7 @@ unwrap_not_shareable(PyThreadState *tstate, _PyXI_failure *failure)
 // diligent about avoiding the problematic situation.
 
 typedef struct {
-    PyObject base;
+    PyObject_HEAD
     Py_buffer *view;
     int64_t interpid;
 } xibufferview;
@@ -148,23 +148,23 @@ xibufferview_from_buffer(PyTypeObject *cls, Py_buffer *view, int64_t interpid)
     /* This steals the view->obj reference  */
     *copied = *view;
 
-    xibufferview *self = PyObject_Malloc(sizeof(xibufferview));
+    assert(cls != NULL);
+    assert(cls->tp_alloc != NULL);
+    xibufferview *self = (xibufferview *)cls->tp_alloc(cls, 0);
     if (self == NULL) {
         PyMem_RawFree(copied);
         return NULL;
     }
-    PyObject_Init(&self->base, cls);
-    *self = (xibufferview){
-        .base = self->base,
-        .view = copied,
-        .interpid = interpid,
-    };
+    self->view = copied;
+    self->interpid = interpid;
     return (PyObject *)self;
 }
 
 static void
 xibufferview_dealloc(PyObject *op)
 {
+    PyTypeObject *tp = Py_TYPE(op);
+    PyObject_GC_UnTrack(op);
     xibufferview *self = (xibufferview *)op;
     if (self->view != NULL) {
         PyInterpreterState *interp =
@@ -184,15 +184,19 @@ xibufferview_dealloc(PyObject *op)
         }
     }
 
-    PyTypeObject *tp = Py_TYPE(self);
     tp->tp_free(self);
     /* "Instances of heap-allocated types hold a reference to their type."
-     * See: https://docs.python.org/3.11/howto/isolating-extensions.html#garbage-collection-protocol
-     * See: https://docs.python.org/3.11/c-api/typeobj.html#c.PyTypeObject.tp_traverse
+     * See: https://docs.python.org/3/c-api/gcsupport.html#supporting-cycle-detection
+     * See: https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_traverse
     */
-    // XXX Why don't we implement Py_TPFLAGS_HAVE_GC, e.g. Py_tp_traverse,
-    // like we do for _abc._abc_data?
     Py_DECREF(tp);
+}
+
+static int
+xibufferview_traverse(PyObject *op, visitproc visit, void *arg)
+{
+    Py_VISIT(Py_TYPE(op));
+    return 0;
 }
 
 static int
@@ -211,6 +215,7 @@ xibufferview_getbuf(PyObject *op, Py_buffer *view, int flags)
 
 static PyType_Slot XIBufferViewType_slots[] = {
     {Py_tp_dealloc, xibufferview_dealloc},
+    {Py_tp_traverse, xibufferview_traverse},
     {Py_bf_getbuffer, xibufferview_getbuf},
     // We don't bother with Py_bf_releasebuffer since we don't need it.
     {0, NULL},
@@ -219,8 +224,13 @@ static PyType_Slot XIBufferViewType_slots[] = {
 static PyType_Spec XIBufferViewType_spec = {
     .name = MODULE_NAME_STR ".CrossInterpreterBufferView",
     .basicsize = sizeof(xibufferview),
-    .flags = (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE |
-              Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_IMMUTABLETYPE),
+    .flags = (
+        Py_TPFLAGS_DEFAULT
+        | Py_TPFLAGS_BASETYPE
+        | Py_TPFLAGS_DISALLOW_INSTANTIATION
+        | Py_TPFLAGS_IMMUTABLETYPE
+        | Py_TPFLAGS_HAVE_GC
+    ),
     .slots = XIBufferViewType_slots,
 };
 

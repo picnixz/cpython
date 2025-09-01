@@ -2346,7 +2346,9 @@ newchannelid(PyTypeObject *cls, int64_t cid, int end, _channels *channels,
 {
     *res = NULL;
 
-    channelid *self = PyObject_New(channelid, cls);
+    assert(cls != NULL);
+    assert(cls->tp_alloc != NULL);
+    channelid *self = (channelid *)cls->tp_alloc(cls, 0);
     if (self == NULL) {
         return -1;
     }
@@ -2435,16 +2437,22 @@ channelid_dealloc(PyObject *op)
     _channels *channels = self->channels;
 
     PyTypeObject *tp = Py_TYPE(self);
+    PyObject_GC_UnTrack(op);
     tp->tp_free(self);
     /* "Instances of heap-allocated types hold a reference to their type."
-     * See: https://docs.python.org/3.11/howto/isolating-extensions.html#garbage-collection-protocol
-     * See: https://docs.python.org/3.11/c-api/typeobj.html#c.PyTypeObject.tp_traverse
+     * See: https://docs.python.org/3/c-api/gcsupport.html#supporting-cycle-detection
+     * See: https://docs.python.org/3/c-api/typeobj.html#c.PyTypeObject.tp_traverse
     */
-    // XXX Why don't we implement Py_TPFLAGS_HAVE_GC, e.g. Py_tp_traverse,
-    // like we do for _abc._abc_data?
     Py_DECREF(tp);
 
     _channels_release_cid_object(channels, cid);
+}
+
+static int
+channelid_traverse(PyObject *op, visitproc visit, void *arg)
+{
+    Py_VISIT(Py_TYPE(op));
+    return 0;
 }
 
 static PyObject *
@@ -2697,6 +2705,7 @@ PyDoc_STRVAR(channelid_doc,
 
 static PyType_Slot channelid_typeslots[] = {
     {Py_tp_dealloc, channelid_dealloc},
+    {Py_tp_traverse, channelid_traverse},
     {Py_tp_doc, (void *)channelid_doc},
     {Py_tp_repr, channelid_repr},
     {Py_tp_str, channelid_str},
@@ -2712,8 +2721,13 @@ static PyType_Slot channelid_typeslots[] = {
 static PyType_Spec channelid_typespec = {
     .name = MODULE_NAME_STR ".ChannelID",
     .basicsize = sizeof(channelid),
-    .flags = (Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE |
-              Py_TPFLAGS_DISALLOW_INSTANTIATION | Py_TPFLAGS_IMMUTABLETYPE),
+    .flags = (
+        Py_TPFLAGS_DEFAULT
+        | Py_TPFLAGS_BASETYPE
+        | Py_TPFLAGS_DISALLOW_INSTANTIATION
+        | Py_TPFLAGS_IMMUTABLETYPE
+        | Py_TPFLAGS_HAVE_GC
+    ),
     .slots = channelid_typeslots,
 };
 
