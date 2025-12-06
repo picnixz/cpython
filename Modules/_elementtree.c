@@ -4415,6 +4415,20 @@ do {                                                                     \
     }                                                                    \
 } while (0)
 
+
+static inline int
+check_expat_compatibility(const struct PyExpat_CAPI *capi)
+{
+    assert(capi != NULL);
+    return (
+        strcmp(capi->magic, PyExpat_CAPI_MAGIC) == 0
+        && (size_t)capi->size >= sizeof(struct PyExpat_CAPI)
+        && capi->MAJOR_VERSION == XML_MAJOR_VERSION
+        && capi->MINOR_VERSION == XML_MINOR_VERSION
+        && capi->MICRO_VERSION == XML_MICRO_VERSION
+    );
+}
+
 static int
 module_exec(PyObject *m)
 {
