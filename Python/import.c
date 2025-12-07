@@ -3,16 +3,15 @@
 #include "Python.h"
 #include "pycore_audit.h"         // _PySys_Audit()
 #include "pycore_ceval.h"
-#include "pycore_dict.h"          // _PyDict_Contains_KnownHash()
 #include "pycore_critical_section.h"  // Py_BEGIN_CRITICAL_SECTION()
+#include "pycore_dict.h"          // _PyDict_Contains_KnownHash()
 #include "pycore_hashtable.h"     // _Py_hashtable_new_full()
 #include "pycore_import.h"        // _PyImport_BootstrapImp()
 #include "pycore_initconfig.h"    // _PyStatus_OK()
 #include "pycore_interp.h"        // struct _import_runtime_state
-#include "pycore_long.h"          // _PyLong_GetZero
-#include "pycore_lazyimportobject.h"
-#include "pycore_traceback.h"
 #include "pycore_interpframe.h"
+#include "pycore_lazyimportobject.h"
+#include "pycore_long.h"          // _PyLong_GetZero
 #include "pycore_magic_number.h"  // PYC_MAGIC_NUMBER_TOKEN
 #include "pycore_moduleobject.h"  // _PyModule_GetDef()
 #include "pycore_namespace.h"     // _PyNamespace_Type
@@ -25,6 +24,7 @@
 #include "pycore_pystate.h"       // _PyInterpreterState_GET()
 #include "pycore_setobject.h"     // _PySet_NextEntry()
 #include "pycore_sysmodule.h"     // _PySys_ClearAttrString()
+#include "pycore_traceback.h"
 #include "pycore_time.h"          // _PyTime_AsMicroseconds()
 #include "pycore_unicodeobject.h" // _PyUnicode_AsUTF8NoNUL()
 #include "pycore_weakref.h"       // _PyWeakref_GET_REF()
