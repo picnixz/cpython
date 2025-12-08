@@ -3832,12 +3832,21 @@ _PyImport_LoadLazyImportTstate(PyThreadState *tstate, PyObject *lazy_import)
     }
     else if (is_loading == 1) {
         PyObject *name = _PyLazyImport_GetName(lazy_import);
-        PyObject *errmsg = PyUnicode_FromFormat("cannot import name %R "
-                                                "(most likely due to a circular import)",
-                                                name);
+        if (name == NULL) {
+            _PyImport_ReleaseLock(interp);
+            return NULL;
+        }
+        PyObject *errmsg = PyUnicode_FromFormat(
+            "cannot import name %R (most likely due to a circular import)",
+            name);
+        if (errmsg == NULL) {
+            Py_DECREF(name);
+            _PyImport_ReleaseLock(interp);
+            return NULL;
+        }
         PyErr_SetImportErrorSubclass(PyExc_ImportCycleError, errmsg, lz->lz_from, NULL);
-        Py_XDECREF(errmsg);
-        Py_XDECREF(name);
+        Py_DECREF(errmsg);
+        Py_DECREF(name);
         _PyImport_ReleaseLock(interp);
         return NULL;
     }
@@ -3918,8 +3927,7 @@ _PyImport_LoadLazyImportTstate(PyThreadState *tstate, PyObject *lazy_import)
     goto ok;
 
 error:
-    Py_XDECREF(obj);
-    obj = NULL;
+    Py_CLEAR(obj);
 
     /* If an error occurred and we have frame information, add it to the exception */
     if (PyErr_Occurred() && lz->lz_code != NULL && lz->lz_instr_offset >= 0) {
@@ -3992,8 +4000,7 @@ error:
 
 ok:
     if (PySet_Discard(importing, lazy_import) < 0) {
-        Py_DECREF(obj);
-        obj = NULL;
+        Py_CLEAR(obj);
     }
 
     // Release the global import lock
@@ -4277,8 +4284,7 @@ register_lazy_on_parent(PyThreadState *tstate, PyObject *name, PyObject *builtin
         }
 
         /* Add the lazy import for the child to the parent */
-        Py_XDECREF(parent_module);
-        parent_module = PyImport_GetModule(parent);
+        Py_XSETREF(parent_module, PyImport_GetModule(parent));
         if (parent_module == NULL) {
             if (PyErr_Occurred()) {
                 goto done;
@@ -4307,8 +4313,7 @@ register_lazy_on_parent(PyThreadState *tstate, PyObject *name, PyObject *builtin
             Py_DECREF(lazy_submodules);
         }
         else {
-            Py_XDECREF(parent_dict);
-            parent_dict = get_mod_dict(parent_module);
+            Py_XSETREF(parent_dict, get_mod_dict(parent_module));
             if (parent_dict == NULL) {
                 goto done;
             }
@@ -4334,8 +4339,7 @@ register_lazy_on_parent(PyThreadState *tstate, PyObject *name, PyObject *builtin
             }
         }
 
-        Py_DECREF(name);
-        name = parent;
+        Py_SETREF(name, parent);
         parent = NULL;
     }
 
@@ -4375,7 +4379,8 @@ _PyImport_LazyImportModuleLevelObject(PyThreadState *tstate,
             Py_DECREF(abs_name);
             return NULL;
         }
-        else if (modname == NULL) {
+        if (modname == NULL) {
+            assert(!PyErr_Occurred());
             modname = Py_NewRef(Py_None);
         }
         PyObject *args[] = {modname, name, fromlist};
@@ -4404,6 +4409,7 @@ _PyImport_LazyImportModuleLevelObject(PyThreadState *tstate,
         }
     }
 
+    // here, 'filter' is either NULL or is equivalent to a borrowed reference
     PyObject *res = _PyLazyImport_New(builtins, abs_name, fromlist);
     if (res == NULL) {
         Py_DECREF(abs_name);
@@ -4805,7 +4811,9 @@ PyImport_SetLazyImportsFilter(PyObject *filter)
     return 0;
 }
 
-/* Gets the lazy imports filter. Returns a new reference. */
+/* Return a strong reference to the current lazy imports filter
+ * or NULL if none exists. This function always succeeds.
+ */
 PyObject *
 PyImport_GetLazyImportsFilter(void)
 {
@@ -5458,12 +5466,15 @@ _imp__set_lazy_attributes_impl(PyObject *module, PyObject *child_module,
         }
 
         child_dict = get_mod_dict(child_module);
-        if (child_dict == NULL || !PyDict_CheckExact(child_dict)) {
+        if (child_dict == NULL) {
+            goto error;
+        }
+        else if (!PyDict_CheckExact(child_dict)) {
             goto done;
         }
         assert(PyAnySet_CheckExact(lazy_submodules));
-        PyObject *attr_name;
         Py_ssize_t pos = 0;
+        PyObject *attr_name;
         Py_hash_t hash;
         while (_PySet_NextEntry(lazy_submodules, &pos, &attr_name, &hash)) {
             if (_PyDict_Contains_KnownHash(child_dict, attr_name, hash)) {
@@ -5485,10 +5496,11 @@ _imp__set_lazy_attributes_impl(PyObject *module, PyObject *child_module,
             goto error;
         }
     }
+
 done:
     ret = Py_NewRef(Py_None);
 
-  error:
+error:
     Py_XDECREF(lazy_modules);
     Py_XDECREF(child_dict);
     return ret;

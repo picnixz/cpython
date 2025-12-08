@@ -2289,6 +2289,16 @@ clear_gen_frame(PyThreadState *tstate, _PyInterpreterFrame * frame)
 void
 _PyEval_FrameClearAndPop(PyThreadState *tstate, _PyInterpreterFrame * frame)
 {
+    // Update last_profiled_frame for remote profiler frame caching.
+    // By this point, tstate->current_frame is already set to the parent frame.
+    // Only update if we're popping the exact frame that was last profiled.
+    // This avoids corrupting the cache when transient frames (called and returned
+    // between profiler samples) update last_profiled_frame to addresses the
+    // profiler never saw.
+    if (tstate->last_profiled_frame != NULL && tstate->last_profiled_frame == frame) {
+        tstate->last_profiled_frame = tstate->current_frame;
+    }
+
     if (frame->owner == FRAME_OWNED_BY_THREAD) {
         clear_thread_frame(tstate, frame);
     }
@@ -2345,7 +2355,7 @@ _PyEvalFramePushAndInit_Ex(PyThreadState *tstate, _PyStackRef func,
     PyObject *kwnames = NULL;
     _PyStackRef *newargs;
     PyObject *const *object_array = NULL;
-    _PyStackRef stack_array[8];
+    _PyStackRef stack_array[8] = {0};
     if (has_dict) {
         object_array = _PyStack_UnpackDict(tstate, _PyTuple_ITEMS(callargs), nargs, kwargs, &kwnames);
         if (object_array == NULL) {
@@ -2408,7 +2418,7 @@ _PyEval_Vector(PyThreadState *tstate, PyFunctionObject *func,
     if (kwnames) {
         total_args += PyTuple_GET_SIZE(kwnames);
     }
-    _PyStackRef stack_array[8];
+    _PyStackRef stack_array[8] = {0};
     _PyStackRef *arguments;
     if (total_args <= 8) {
         arguments = stack_array;
@@ -3343,6 +3353,9 @@ PyEval_MergeCompilerFlags(PyCompilerFlags *cf)
 {
     PyThreadState *tstate = _PyThreadState_GET();
     _PyInterpreterFrame *current_frame = tstate->current_frame;
+    if (current_frame == tstate->base_frame) {
+        current_frame = NULL;
+    }
     int result = cf->cf_flags != 0;
 
     if (current_frame != NULL) {
@@ -3471,25 +3484,28 @@ _PyEval_ImportNameWithImport(PyThreadState *tstate, PyObject *import_func, PyObj
                         ilevel);
     }
 
-    PyObject* args[5] = {name, globals, locals, fromlist, level};
+    PyObject *args[5] = {name, globals, locals, fromlist, level};
     PyObject *res = PyObject_Vectorcall(import_func, args, 5, NULL);
     return res;
 }
 
 static int
-check_lazy_import_comatibility(PyThreadState *tstate, PyObject *globals,
+check_lazy_import_compatibility(PyThreadState *tstate, PyObject *globals,
                                PyObject *name, PyObject *level)
 {
-     // Check if this module should be imported lazily due to the compatbility mode support via
-    // __lazy_modules__.
+     // Check if this module should be imported lazily due to
+     // the compatibility mode support via __lazy_modules__.
     PyObject *lazy_modules = NULL;
     PyObject *abs_name = NULL;
     int res = -1;
 
     if (globals != NULL &&
-        PyMapping_GetOptionalItem(globals, &_Py_ID(__lazy_modules__), &lazy_modules) < 0) {
+        PyMapping_GetOptionalItem(globals, &_Py_ID(__lazy_modules__), &lazy_modules) < 0)
+    {
         return -1;
-    } else if (lazy_modules == NULL) {
+    }
+    if (lazy_modules == NULL) {
+        assert(!PyErr_Occurred());
         return 0;
     }
 
@@ -3530,7 +3546,7 @@ _PyEval_LazyImportName(PyThreadState *tstate, PyObject *builtins, PyObject *glob
 
     if (!lazy) {
         // see if __lazy_imports__ forces this to be lazy
-        lazy = check_lazy_import_comatibility(tstate, globals, name, level);
+        lazy = check_lazy_import_compatibility(tstate, globals, name, level);
         if (lazy < 0) {
             return NULL;
         }
@@ -3544,7 +3560,9 @@ _PyEval_LazyImportName(PyThreadState *tstate, PyObject *builtins, PyObject *glob
     PyObject *lazy_import_func;
     if (PyMapping_GetOptionalItem(builtins, &_Py_ID(__lazy_import__), &lazy_import_func) < 0) {
         goto error;
-    } else if (lazy_import_func == NULL) {
+    }
+    if (lazy_import_func == NULL) {
+        assert(!PyErr_Occurred());
         _PyErr_SetString(tstate, PyExc_ImportError, "__lazy_import__ not found");
         goto error;
     }
@@ -3565,7 +3583,7 @@ _PyEval_LazyImportName(PyThreadState *tstate, PyObject *builtins, PyObject *glob
         goto error;
     }
 
-    PyObject* args[6] = {name, globals, locals, fromlist, level, builtins};
+    PyObject *args[6] = {name, globals, locals, fromlist, level, builtins};
     res = PyObject_Vectorcall(lazy_import_func, args, 6, NULL);
 error:
     Py_XDECREF(lazy_import_func);
@@ -3744,7 +3762,8 @@ PyObject *
 _PyEval_LazyImportFrom(PyThreadState *tstate, PyObject *v, PyObject *name)
 {
     assert(PyLazyImport_CheckExact(v));
-    assert(name && PyUnicode_Check(name));
+    assert(name);
+    assert(PyUnicode_Check(name));
     PyObject *ret;
     PyLazyImportObject *d = (PyLazyImportObject *)v;
     PyObject *mod = PyImport_GetModule(d->lz_from);
@@ -3756,7 +3775,8 @@ _PyEval_LazyImportFrom(PyThreadState *tstate, PyObject *v, PyObject *name)
                 if (PyDict_GetItemRef(mod_dict, name, &ret) < 0) {
                     Py_DECREF(mod);
                     return NULL;
-                } else if (ret != NULL) {
+                }
+                if (ret != NULL) {
                     Py_DECREF(mod);
                     return ret;
                 }
@@ -3775,8 +3795,11 @@ _PyEval_LazyImportFrom(PyThreadState *tstate, PyObject *v, PyObject *name)
             Py_DECREF(from);
             return ret;
         }
-    } else {
-        Py_ssize_t dot = PyUnicode_FindChar(d->lz_from, '.', 0, PyUnicode_GET_LENGTH(d->lz_from), 1);
+    }
+    else {
+        Py_ssize_t dot = PyUnicode_FindChar(
+            d->lz_from, '.', 0, PyUnicode_GET_LENGTH(d->lz_from), 1
+        );
         if (dot >= 0) {
             PyObject *from = PyUnicode_Substring(d->lz_from, 0, dot);
             if (from == NULL) {
