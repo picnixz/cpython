@@ -1,12 +1,18 @@
 """Tests for PEP 810 lazy imports."""
 
+import io
+import dis
+import subprocess
 import sys
+import textwrap
+import threading
 import types
 import unittest
-import threading
-import textwrap
-import subprocess
-from test.support import import_helper
+
+try:
+    import _testcapi
+except ImportError:
+    _testcapi = None
 
 
 class LazyImportTests(unittest.TestCase):
@@ -20,27 +26,42 @@ class LazyImportTests(unittest.TestCase):
 
         sys.set_lazy_imports_filter(None)
         sys.set_lazy_imports("normal")
+        sys.lazy_modules.clear()
 
     def test_basic_unused(self):
         """Lazy imported module should not be loaded if never accessed."""
         import test.test_import.data.lazy_imports.basic_unused
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports", sys.lazy_modules)
+        self.assertEqual(sys.lazy_modules["test.test_import.data.lazy_imports"], {"basic2"})
+
+    def test_sys_lazy_modules(self):
+        try:
+            import test.test_import.data.lazy_imports.basic_from_unused
+        except ImportError as e:
+            self.fail('lazy import failed')
+
         self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports", sys.lazy_modules)
+        self.assertEqual(sys.lazy_modules["test.test_import.data.lazy_imports"], {"basic2"})
+        test.test_import.data.lazy_imports.basic_from_unused.basic2
+        self.assertNotIn("test.test_import.data", sys.lazy_modules)
 
     def test_basic_unused_use_externally(self):
         """Lazy import should load module when accessed from outside."""
         from test.test_import.data.lazy_imports import basic_unused
 
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
         x = basic_unused.test.test_import.data.lazy_imports.basic2
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_basic_from_unused_use_externally(self):
         """Lazy 'from' import should load when accessed from outside."""
         from test.test_import.data.lazy_imports import basic_from_unused
 
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
         x = basic_from_unused.basic2
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_basic_unused_dir(self):
         """dir() on module should not trigger lazy import reification."""
@@ -48,19 +69,19 @@ class LazyImportTests(unittest.TestCase):
 
         x = dir(test.test_import.data.lazy_imports.basic_unused)
         self.assertIn("test", x)
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_basic_dir(self):
         """dir() at module scope should not trigger lazy import reification."""
         from test.test_import.data.lazy_imports import basic_dir
 
         self.assertIn("test", basic_dir.x)
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_basic_used(self):
         """Lazy import should load when accessed within the module."""
         import test.test_import.data.lazy_imports.basic_used
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
 
 class GlobalLazyImportModeTests(unittest.TestCase):
@@ -77,32 +98,32 @@ class GlobalLazyImportModeTests(unittest.TestCase):
     def test_global_off(self):
         """Mode 'none' should disable lazy imports entirely."""
         import test.test_import.data.lazy_imports.global_off
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_global_on(self):
         """Mode 'all' should make regular imports lazy."""
         import test.test_import.data.lazy_imports.global_on
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_global_filter(self):
         """Filter returning False should prevent lazy loading."""
         import test.test_import.data.lazy_imports.global_filter
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_global_filter_true(self):
         """Filter returning True should allow lazy loading."""
         import test.test_import.data.lazy_imports.global_filter_true
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_global_filter_from(self):
         """Filter should work with 'from' imports."""
         import test.test_import.data.lazy_imports.global_filter
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_global_filter_from_true(self):
         """Filter returning True should allow lazy 'from' imports."""
         import test.test_import.data.lazy_imports.global_filter_true
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
 
 class CompatibilityModeTests(unittest.TestCase):
@@ -119,27 +140,27 @@ class CompatibilityModeTests(unittest.TestCase):
     def test_compatibility_mode(self):
         """__lazy_modules__ should enable lazy imports for listed modules."""
         import test.test_import.data.lazy_imports.basic_compatibility_mode
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_compatibility_mode_used(self):
         """Using a lazy import from __lazy_modules__ should load the module."""
         import test.test_import.data.lazy_imports.basic_compatibility_mode_used
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_compatibility_mode_func(self):
         """Imports inside functions should be eager even in compatibility mode."""
         import test.test_import.data.lazy_imports.compatibility_mode_func
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_compatibility_mode_try_except(self):
         """Imports in try/except should be eager even in compatibility mode."""
         import test.test_import.data.lazy_imports.compatibility_mode_try_except
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_compatibility_mode_relative(self):
         """__lazy_modules__ should work with relative imports."""
         import test.test_import.data.lazy_imports.basic_compatibility_mode_relative
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
 
 class ModuleIntrospectionTests(unittest.TestCase):
@@ -156,17 +177,17 @@ class ModuleIntrospectionTests(unittest.TestCase):
     def test_modules_dict(self):
         """Accessing module.__dict__ should not trigger reification."""
         import test.test_import.data.lazy_imports.modules_dict
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_modules_getattr(self):
         """Module __getattr__ for lazy import name should trigger reification."""
         import test.test_import.data.lazy_imports.modules_getattr
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_modules_getattr_other(self):
         """Module __getattr__ for other names should not trigger reification."""
         import test.test_import.data.lazy_imports.modules_getattr_other
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
 
 class LazyImportTypeTests(unittest.TestCase):
@@ -183,12 +204,49 @@ class LazyImportTypeTests(unittest.TestCase):
     def test_lazy_value_resolve(self):
         """resolve() method should force the lazy import to load."""
         import test.test_import.data.lazy_imports.lazy_get_value
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_lazy_import_type_exposed(self):
         """LazyImportType should be exposed in types module."""
-        self.assertTrue(hasattr(types, 'LazyImportType'))
+        self.assertHasAttr(types, 'LazyImportType')
         self.assertEqual(types.LazyImportType.__name__, 'lazy_import')
+
+    def test_lazy_import_type_invalid_name(self):
+        """passing invalid name to lazy imports should raise a TypeError"""
+        with self.assertRaises(TypeError) as cm:
+            types.LazyImportType({}, None)
+
+    def test_lazy_import_type_invalid_fromlist_type(self):
+        """LazyImportType should reject invalid fromlist types."""
+        # fromlist must be None, a string, or a tuple - not an int
+        with self.assertRaises(TypeError) as cm:
+            types.LazyImportType({}, "module", 0)
+        self.assertIn("fromlist must be None, a string, or a tuple", str(cm.exception))
+
+        # Also test with other invalid types
+        with self.assertRaises(TypeError):
+            types.LazyImportType({}, "module", [])  # list not allowed
+
+        with self.assertRaises(TypeError):
+            types.LazyImportType({}, "module", {"x": 1})  # dict not allowed
+
+    def test_lazy_import_type_valid_fromlist(self):
+        """LazyImportType should accept valid fromlist types."""
+        # None is valid (implicit)
+        lazy1 = types.LazyImportType({}, "module")
+        self.assertIsNotNone(lazy1)
+
+        # Explicit None is valid
+        lazy2 = types.LazyImportType({}, "module", None)
+        self.assertIsNotNone(lazy2)
+
+        # String is valid
+        lazy3 = types.LazyImportType({}, "module", "attr")
+        self.assertIsNotNone(lazy3)
+
+        # Tuple is valid
+        lazy4 = types.LazyImportType({}, "module", ("attr1", "attr2"))
+        self.assertIsNotNone(lazy4)
 
 
 class SyntaxRestrictionTests(unittest.TestCase):
@@ -230,6 +288,35 @@ class SyntaxRestrictionTests(unittest.TestCase):
         with self.assertRaises(SyntaxError):
             import test.test_import.data.lazy_imports.lazy_import_func
 
+    def test_lazy_import_exec_in_function(self):
+        """lazy import via exec() inside a function should raise SyntaxError."""
+        # exec() inside a function creates a non-module-level context
+        # where lazy imports are not allowed
+        def f():
+            exec("lazy import json")
+
+        with self.assertRaises(SyntaxError) as cm:
+            f()
+        self.assertIn("only allowed at module level", str(cm.exception))
+
+    def test_lazy_import_exec_at_module_level(self):
+        """lazy import via exec() at module level should work."""
+        # exec() at module level (globals == locals) should allow lazy imports
+        code = textwrap.dedent("""
+            import sys
+            exec("lazy import json")
+            # Should be lazy - not loaded yet
+            assert 'json' not in sys.modules
+            print("OK")
+        """)
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0, f"stdout: {result.stdout}, stderr: {result.stderr}")
+        self.assertIn("OK", result.stdout)
+
 
 class EagerImportInLazyModeTests(unittest.TestCase):
     """Tests for imports that should remain eager even in lazy mode."""
@@ -246,13 +333,13 @@ class EagerImportInLazyModeTests(unittest.TestCase):
         """Imports in try/except should be eager even with mode='all'."""
         sys.set_lazy_imports("all")
         import test.test_import.data.lazy_imports.try_except_eager
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_try_except_eager_from(self):
         """From imports in try/except should be eager even with mode='all'."""
         sys.set_lazy_imports("all")
         import test.test_import.data.lazy_imports.try_except_eager_from
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_eager_import_func(self):
         """Imports inside functions should return modules, not proxies."""
@@ -277,12 +364,12 @@ class WithStatementTests(unittest.TestCase):
     def test_lazy_with(self):
         """lazy import with 'with' statement should work."""
         import test.test_import.data.lazy_imports.lazy_with
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_lazy_with_from(self):
         """lazy from import with 'with' statement should work."""
         import test.test_import.data.lazy_imports.lazy_with_from
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
 
 class PackageTests(unittest.TestCase):
@@ -300,16 +387,16 @@ class PackageTests(unittest.TestCase):
         """lazy import of package submodule should load the package."""
         import test.test_import.data.lazy_imports.lazy_import_pkg
 
-        self.assertTrue("test.test_import.data.lazy_imports.pkg" in sys.modules)
-        self.assertTrue("test.test_import.data.lazy_imports.pkg.bar" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.pkg", sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.pkg.bar", sys.modules)
 
     def test_lazy_import_pkg_cross_import(self):
         """Cross-imports within package should preserve lazy imports."""
         import test.test_import.data.lazy_imports.pkg.c
 
-        self.assertTrue("test.test_import.data.lazy_imports.pkg" in sys.modules)
-        self.assertTrue("test.test_import.data.lazy_imports.pkg.c" in sys.modules)
-        self.assertFalse("test.test_import.data.lazy_imports.pkg.b" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.pkg", sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.pkg.c", sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.pkg.b", sys.modules)
 
         g = test.test_import.data.lazy_imports.pkg.c.get_globals()
         self.assertEqual(type(g["x"]), int)
@@ -330,19 +417,19 @@ class DunderLazyImportTests(unittest.TestCase):
     def test_dunder_lazy_import(self):
         """__lazy_import__ should create lazy import proxy."""
         import test.test_import.data.lazy_imports.dunder_lazy_import
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_dunder_lazy_import_used(self):
         """Using __lazy_import__ result should trigger module load."""
         import test.test_import.data.lazy_imports.dunder_lazy_import_used
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_dunder_lazy_import_builtins(self):
         """__lazy_import__ should use module's __builtins__ for __import__."""
         from test.test_import.data.lazy_imports import dunder_lazy_import_builtins
 
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
-        self.assertEqual(dunder_lazy_import_builtins.basic, 42)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
+        self.assertEqual(dunder_lazy_import_builtins.basic.basic2, 42)
 
 
 class SysLazyImportsAPITests(unittest.TestCase):
@@ -398,15 +485,9 @@ class SysLazyImportsAPITests(unittest.TestCase):
         sys.set_lazy_imports_filter(my_filter)
         self.assertIs(sys.get_lazy_imports_filter(), my_filter)
 
-    def test_get_lazy_modules_returns_set(self):
-        """get_lazy_modules should return a set per PEP 810."""
-        result = sys.get_lazy_modules()
-        self.assertIsInstance(result, set)
-
     def test_lazy_modules_attribute_is_set(self):
         """sys.lazy_modules should be a set per PEP 810."""
-        self.assertIsInstance(sys.lazy_modules, set)
-        self.assertIs(sys.lazy_modules, sys.get_lazy_modules())
+        self.assertIsInstance(sys.lazy_modules, dict)
 
     def test_lazy_modules_tracks_lazy_imports(self):
         """sys.lazy_modules should track lazily imported module names."""
@@ -414,7 +495,8 @@ class SysLazyImportsAPITests(unittest.TestCase):
             import sys
             initial_count = len(sys.lazy_modules)
             import test.test_import.data.lazy_imports.basic_unused
-            assert "test.test_import.data.lazy_imports.basic2" in sys.lazy_modules
+            assert "test.test_import.data.lazy_imports" in sys.lazy_modules
+            assert sys.lazy_modules["test.test_import.data.lazy_imports"] == {"basic2"}
             assert len(sys.lazy_modules) > initial_count
             print("OK")
         """)
@@ -632,22 +714,22 @@ class GlobalsAndDictTests(unittest.TestCase):
         import test.test_import.data.lazy_imports.globals_access
 
         # Module not loaded yet via direct dict access
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
         # Access via get_from_globals should return lazy proxy
         lazy_obj = test.test_import.data.lazy_imports.globals_access.get_from_globals()
         self.assertEqual(type(lazy_obj), types.LazyImportType)
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_direct_access_triggers_reification(self):
         """Direct name access (not through globals()) should trigger reification."""
         import test.test_import.data.lazy_imports.globals_access
 
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
         # Direct access should reify
         result = test.test_import.data.lazy_imports.globals_access.get_direct()
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_resolve_method_forces_reification(self):
         """Calling resolve() on lazy proxy should force reification.
@@ -794,14 +876,15 @@ class SysLazyModulesTrackingTests(unittest.TestCase):
             lazy import test.test_import.data.lazy_imports.basic2
 
             # Should be in lazy_modules after lazy import
-            assert "test.test_import.data.lazy_imports.basic2" in sys.lazy_modules
+            assert "test.test_import.data.lazy_imports" in sys.lazy_modules
+            assert sys.lazy_modules["test.test_import.data.lazy_imports"] == {"basic2"}
             assert len(sys.lazy_modules) > initial_count
 
             # Trigger reification
             _ = test.test_import.data.lazy_imports.basic2.x
 
             # Module should still be tracked (for diagnostics per PEP 810)
-            assert "test.test_import.data.lazy_imports.basic2" in sys.lazy_modules
+            assert "test.test_import.data.lazy_imports" not in sys.lazy_modules
             print("OK")
         """)
         result = subprocess.run(
@@ -815,8 +898,7 @@ class SysLazyModulesTrackingTests(unittest.TestCase):
     def test_lazy_modules_is_per_interpreter(self):
         """Each interpreter should have independent sys.lazy_modules."""
         # Basic test that sys.lazy_modules exists and is a set
-        self.assertIsInstance(sys.lazy_modules, set)
-        self.assertIs(sys.lazy_modules, sys.get_lazy_modules())
+        self.assertIsInstance(sys.lazy_modules, dict)
 
 
 class CommandLineAndEnvVarTests(unittest.TestCase):
@@ -1176,23 +1258,23 @@ class RelativeImportTests(unittest.TestCase):
         from test.test_import.data.lazy_imports import relative_lazy
 
         # basic2 should not be loaded yet
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
         # Access triggers reification
         result = relative_lazy.get_basic2()
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
     def test_relative_lazy_from_import(self):
         """lazy from .module import name should work."""
         from test.test_import.data.lazy_imports import relative_lazy_from
 
         # basic2 should not be loaded yet
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
         # Access triggers reification
         result = relative_lazy_from.get_x()
         self.assertEqual(result, 42)
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
 
 class LazyModulesCompatibilityFromImportTests(unittest.TestCase):
@@ -1215,12 +1297,12 @@ class LazyModulesCompatibilityFromImportTests(unittest.TestCase):
         from test.test_import.data.lazy_imports import lazy_compat_from
 
         # basic2 should not be loaded yet because it's in __lazy_modules__
-        self.assertFalse("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertNotIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
         # Access triggers reification
         result = lazy_compat_from.get_x()
         self.assertEqual(result, 42)
-        self.assertTrue("test.test_import.data.lazy_imports.basic2" in sys.modules)
+        self.assertIn("test.test_import.data.lazy_imports.basic2", sys.modules)
 
 
 class ImportStateAtReificationTests(unittest.TestCase):
@@ -1407,7 +1489,7 @@ class ThreadSafetyTests(unittest.TestCase):
                 t.join()
 
             assert not errors, f"Errors: {errors}"
-            assert isinstance(sys.lazy_modules, set), "sys.lazy_modules is not a set"
+            assert isinstance(sys.lazy_modules, dict), "sys.lazy_modules is not a dict"
             print("OK")
         """)
 
@@ -1529,6 +1611,52 @@ class ThreadSafetyTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, f"stdout: {result.stdout}, stderr: {result.stderr}")
         self.assertIn("OK", result.stdout)
+
+
+class LazyImportDisTests(unittest.TestCase):
+    def test_lazy_import_dis(self):
+        """dis should properly show lazy import"""
+        code = compile("lazy import foo", "exec", "exec")
+        f = io.StringIO()
+        dis.dis(code, file=f)
+        self.assertIn("foo + lazy", f.getvalue())
+
+    def test_normal_import_dis(self):
+        """non lazy imports should just show the name"""
+        code = compile("import foo", "exec", "exec")
+        f = io.StringIO()
+        dis.dis(code, file=f)
+        for line in f.getvalue().split('\n'):
+            if "IMPORT_NAME" in line:
+                self.assertIn("(foo)", line)
+                break
+        else:
+            self.assertFail("IMPORT_NAME not found")
+
+
+@unittest.skipIf(_testcapi is None, 'need the _testcapi module')
+class LazyCApiTests(unittest.TestCase):
+    def tearDown(self):
+        sys.set_lazy_imports("normal")
+        sys.set_lazy_imports_filter(None)
+
+    def test_set_matches_sys(self):
+        self.assertEqual(_testcapi.PyImport_GetLazyImportsMode(), sys.get_lazy_imports())
+        for mode in ("normal", "all", "none"):
+            _testcapi.PyImport_SetLazyImportsMode(mode)
+            self.assertEqual(_testcapi.PyImport_GetLazyImportsMode(), sys.get_lazy_imports())
+
+    def test_filter_matches_sys(self):
+        self.assertEqual(_testcapi.PyImport_GetLazyImportsFilter(), sys.get_lazy_imports_filter())
+
+        def filter(*args):
+            pass
+
+        _testcapi.PyImport_SetLazyImportsFilter(filter)
+        self.assertEqual(_testcapi.PyImport_GetLazyImportsFilter(), sys.get_lazy_imports_filter())
+
+    def test_set_bad_filter(self):
+        self.assertRaises(ValueError, _testcapi.PyImport_SetLazyImportsFilter, 42)
 
 
 if __name__ == '__main__':

@@ -327,7 +327,9 @@ struct _import_state {
     PyObject *lazy_imports_filter;
     PyObject *lazy_importing_modules;
     PyObject *lazy_modules;
-    PyObject *lazy_modules_set;  /* Set of fully-qualified module names lazily imported (PEP 810) */
+#ifdef Py_GIL_DISABLED
+    PyMutex lazy_mutex;
+#endif
     /* The global import lock. */
     _PyRecursiveMutex lock;
     /* diagnostic info in PyImport_ImportModuleLevelObject() */

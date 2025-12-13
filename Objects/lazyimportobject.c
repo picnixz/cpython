@@ -11,24 +11,28 @@
 #define PyLazyImportObject_CAST(op) ((PyLazyImportObject *)(op))
 
 PyObject *
-_PyLazyImport_New(PyObject *builtins, PyObject *from, PyObject *attr)
+_PyLazyImport_New(PyObject *builtins, PyObject *name, PyObject *fromlist)
 {
     PyLazyImportObject *m;
-    if (!from || !PyUnicode_Check(from)) {
-        PyErr_BadArgument();
+    if (!name || !PyUnicode_Check(name)) {
+        PyErr_SetString(PyExc_TypeError, "expected str for name");
         return NULL;
     }
-    if (attr == Py_None) {
-        attr = NULL;
+    if (fromlist == Py_None || fromlist == NULL) {
+        fromlist = NULL;
     }
-    assert(!attr || PyObject_IsTrue(attr));
+    else if (!PyUnicode_Check(fromlist) && !PyTuple_Check(fromlist)) {
+        PyErr_SetString(PyExc_TypeError,
+                        "lazy_import: fromlist must be None, a string, or a tuple");
+        return NULL;
+    }
     m = PyObject_GC_New(PyLazyImportObject, &PyLazyImport_Type);
     if (m == NULL) {
         return NULL;
     }
     m->lz_builtins = Py_XNewRef(builtins);
-    m->lz_from = Py_NewRef(from);
-    m->lz_attr = Py_XNewRef(attr);
+    m->lz_from = Py_NewRef(name);
+    m->lz_attr = Py_XNewRef(fromlist);
 
     /* Capture frame information for the original import location */
     m->lz_code = NULL;
