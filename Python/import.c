@@ -4453,9 +4453,13 @@ _PyImport_LazyImportModuleLevelObject(PyThreadState *tstate,
         if (register_from_lazy_on_parent(tstate, abs_name, fromlist, builtins) < 0) {
             goto error;
         }
-    } else if (fromlist && PyTuple_Check(fromlist) && PyTuple_GET_SIZE(fromlist)) {
+    }
+    else if (fromlist && PyTuple_Check(fromlist) && PyTuple_GET_SIZE(fromlist)) {
         for (Py_ssize_t i = 0; i < PyTuple_GET_SIZE(fromlist); i++) {
-            if (register_from_lazy_on_parent(tstate, abs_name, PyTuple_GET_ITEM(fromlist, i), builtins) < 0) {
+            if (register_from_lazy_on_parent(tstate, abs_name,
+                                             PyTuple_GET_ITEM(fromlist, i),
+                                             builtins) < 0)
+            {
                 goto error;
             }
         }
@@ -5474,7 +5478,10 @@ _imp_source_hash_impl(PyObject *module, long key, Py_buffer *source)
 }
 
 static int
-publish_lazy_imports_on_module(PyThreadState *tstate, PyObject *lazy_submodules, PyObject *name, PyObject *module_dict)
+publish_lazy_imports_on_module(PyThreadState *tstate,
+                               PyObject *lazy_submodules,
+                               PyObject *name,
+                               PyObject *module_dict)
 {
     PyObject *builtins = _PyEval_GetBuiltins(tstate);
     PyObject *attr_name;
