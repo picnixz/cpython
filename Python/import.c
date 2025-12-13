@@ -24,8 +24,8 @@
 #include "pycore_pystate.h"       // _PyInterpreterState_GET()
 #include "pycore_setobject.h"     // _PySet_NextEntry()
 #include "pycore_sysmodule.h"     // _PySys_ClearAttrString()
-#include "pycore_traceback.h"
 #include "pycore_time.h"          // _PyTime_AsMicroseconds()
+#include "pycore_traceback.h"
 #include "pycore_unicodeobject.h" // _PyUnicode_AsUTF8NoNUL()
 #include "pycore_weakref.h"       // _PyWeakref_GET_REF()
 
@@ -3909,8 +3909,7 @@ _PyImport_LoadLazyImportTstate(PyThreadState *tstate, PyObject *lazy_import)
 
     PyObject *globals = PyEval_GetGlobals();
 
-    if (PyMapping_GetOptionalItem(lz->lz_builtins, &_Py_ID(__import__), &import_func) < 0)
-    {
+    if (PyMapping_GetOptionalItem(lz->lz_builtins, &_Py_ID(__import__), &import_func) < 0) {
         goto error;
     }
     if (import_func == NULL) {
@@ -4097,7 +4096,7 @@ get_abs_name(PyThreadState *tstate, PyObject *name, PyObject *globals, int level
         return resolve_name(tstate, name, globals, level);
     }
     if (PyUnicode_GET_LENGTH(name) == 0) {
-        _PyErr_SetString(tstate, PyExc_ValueError, "empty module name");
+        _PyErr_SetString(tstate, PyExc_ValueError, "Empty module name");
         return NULL;
     }
     return Py_NewRef(name);
@@ -4124,7 +4123,7 @@ PyImport_ImportModuleLevelObject(PyObject *name, PyObject *globals,
     int has_from;
 
     if (name == NULL) {
-        _PyErr_SetString(tstate, PyExc_ValueError, "empty module name");
+        _PyErr_SetString(tstate, PyExc_ValueError, "Empty module name");
         goto error;
     }
 
@@ -4343,8 +4342,7 @@ register_lazy_on_parent(PyThreadState *tstate, PyObject *name, PyObject *builtin
                     if (lazy_module_attr == NULL) {
                         goto done;
                     }
-                    if (PyDict_SetItem(parent_dict, child, lazy_module_attr) < 0)
-                    {
+                    if (PyDict_SetItem(parent_dict, child, lazy_module_attr) < 0) {
                         Py_DECREF(lazy_module_attr);
                         goto done;
                     }
