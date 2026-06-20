@@ -549,6 +549,58 @@ _random_Random_getrandbits_impl(RandomObject *self, uint64_t k)
     return result;
 }
 
+static inline void
+write_u32_le(uint8_t *out, uint32_t x, uint64_t k)
+{
+    for (uint64_t j = 0; j < k; j++) {
+        *out++ = (uint8_t)(x & 0xFF);
+        x >>= 8;
+    }
+}
+
+/*[clinic input]
+@critical_section
+_random.Random.randbytes
+
+  self: self(type="RandomObject *")
+  n: uint64
+  /
+
+randbytes(n) -> x.  Generate n random bytes.
+[clinic start generated code]*/
+
+static PyObject *
+_random_Random_randbytes_impl(RandomObject *self, uint64_t n)
+/*[clinic end generated code: output=f4c2a7ebdadaad00 input=feb7be0b1bfff2cf]*/
+{
+    if (n == 0) {
+        return Py_GetConstant(Py_CONSTANT_EMPTY_BYTES);
+    }
+
+    if (n > (uint64_t)PY_SSIZE_T_MAX) {
+        PyErr_NoMemory();
+        return NULL;
+    }
+
+    PyObject *result = PyBytes_FromStringAndSize(NULL, (Py_ssize_t)n);
+    if (!result) return result;
+    uint8_t *out = (uint8_t *)PyBytes_AS_STRING(result);
+
+    uint64_t q = n / 4;
+    uint64_t r = n % 4;
+
+    for (uint64_t i = 0; i < q; ++i) {
+        uint32_t word = genrand_uint32(self);
+        write_u32_le(out + 4 * i, word, 4);
+    }
+    if (r) {
+        uint32_t word = genrand_uint32(self);
+        word >>= (32 - 8 * r);  // drop extra LSBs
+        write_u32_le(out + 4 * q, word, r);
+    }
+    return result;
+}
+
 /*[clinic input]
 @critical_section
 @text_signature "($self, [seed])"
@@ -572,6 +624,7 @@ static PyMethodDef random_methods[] = {
     _RANDOM_RANDOM_GETSTATE_METHODDEF
     _RANDOM_RANDOM_SETSTATE_METHODDEF
     _RANDOM_RANDOM_GETRANDBITS_METHODDEF
+    _RANDOM_RANDOM_RANDBYTES_METHODDEF
     {NULL,              NULL}           /* sentinel */
 };
 

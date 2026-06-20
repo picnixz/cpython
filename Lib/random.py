@@ -281,14 +281,6 @@ class Random(_random.Random):
     ## ---- access randomness through the methods:  random(),
     ## ---- getrandbits(), or _randbelow().
 
-
-    ## -------------------- bytes methods ---------------------
-
-    def randbytes(self, n):
-        """Generate n random bytes."""
-        return self.getrandbits(n * 8).to_bytes(n, 'little')
-
-
     ## -------------------- integer methods  -------------------
 
     def randrange(self, start, stop=None, step=_ONE):

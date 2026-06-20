@@ -144,6 +144,35 @@ exit:
     return return_value;
 }
 
+PyDoc_STRVAR(_random_Random_randbytes__doc__,
+"randbytes($self, n, /)\n"
+"--\n"
+"\n"
+"randbytes(n) -> x.  Generate n random bytes.");
+
+#define _RANDOM_RANDOM_RANDBYTES_METHODDEF    \
+    {"randbytes", (PyCFunction)_random_Random_randbytes, METH_O, _random_Random_randbytes__doc__},
+
+static PyObject *
+_random_Random_randbytes_impl(RandomObject *self, uint64_t n);
+
+static PyObject *
+_random_Random_randbytes(PyObject *self, PyObject *arg)
+{
+    PyObject *return_value = NULL;
+    uint64_t n;
+
+    if (!_PyLong_UInt64_Converter(arg, &n)) {
+        goto exit;
+    }
+    Py_BEGIN_CRITICAL_SECTION(self);
+    return_value = _random_Random_randbytes_impl((RandomObject *)self, n);
+    Py_END_CRITICAL_SECTION();
+
+exit:
+    return return_value;
+}
+
 static int
 random_init_impl(RandomObject *self, PyObject *seed);
 
@@ -174,4 +203,4 @@ skip_optional:
 exit:
     return return_value;
 }
-/*[clinic end generated code: output=ec95f7df0c3f3c19 input=a9049054013a1b77]*/
+/*[clinic end generated code: output=1758cd0a10b7df19 input=a9049054013a1b77]*/
