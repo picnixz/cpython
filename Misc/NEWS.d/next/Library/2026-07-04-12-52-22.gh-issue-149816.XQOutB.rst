@@ -1,0 +1,2 @@
+:mod:`hashlib`: fix a race when fetching OpenSSL digests. Patch by Bénédikt
+Tran.
