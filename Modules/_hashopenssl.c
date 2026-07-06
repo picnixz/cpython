@@ -712,7 +712,6 @@ get_openssl_evp_md_by_utf8name(_hashlibstate *state, const char *name,
                  * See https://github.com/python/cpython/issues/128657
                  * and https://github.com/python/cpython/issues/149816.
                  */
-#ifdef Py_GIL_DISABLED
                 PY_EVP_MD *expected = NULL;
                 if (_Py_atomic_compare_exchange_ptr(cached, &expected, (void *)fresh)) {
                     digest = fresh;         // we won: 'cached' now owns the fresh digest
@@ -721,9 +720,6 @@ get_openssl_evp_md_by_utf8name(_hashlibstate *state, const char *name,
                     PY_EVP_MD_free(fresh);  // we lost: discard the fresh digest
                     digest = expected;      // reuse the winner's digest
                 }
-#else
-                digest = *cached = fresh;
-#endif
             }
         }
         /* Hand the caller its own reference; the cache keeps its own. Valid
